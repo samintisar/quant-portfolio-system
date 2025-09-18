@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
+<<<<<<< Updated upstream
       "mcp__context7"
+=======
+      "mcp__context7",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(tree:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(python:*)",
+      "Bash(find:*)"
+>>>>>>> Stashed changes
     ],
     "deny": [],
     "ask": []
