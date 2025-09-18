@@ -64,10 +64,45 @@ This project follows the Quantitative Trading System Constitution (v1.0.0):
 
 ## Recent Changes
 <!-- Auto-updated by scripts - keep last 3 entries -->
-- 2025-01-17: Initial constitution and templates created
-- 2025-01-17: Project structure established for quantitative trading
-- 2025-01-17: Mathematical validation frameworks defined
+- 2025-09-18: Complete data ingestion and storage system implemented
+- 2025-09-18: Yahoo Finance API integration with persistent storage
+- 2025-09-18: Multi-asset class support (equities, ETFs, FX, bonds)
+
+## Repository Organization
+**MAINTAIN CLEAN PROJECT STRUCTURE - NO RANDOM FILES IN ROOT!**
+
+### Directory Structure:
+```
+quant-portfolio-system/
+├── data/                          # Data handling ONLY
+│   ├── src/                       # Source code modules
+│   │   ├── feeds/                 # Data ingestion
+│   │   └── storage/               # Data storage
+│   └── storage/                   # Actual data files (created at runtime)
+├── scripts/                       # Utility and demo scripts
+├── examples/                      # Usage examples
+├── docs/                          # Documentation ONLY
+├── portfolio/                     # Portfolio optimization
+├── strategies/                    # Trading strategies
+├── tests/                         # Unit tests
+├── config/                        # Configuration files
+└── output/                        # Analysis outputs
+```
+
+### Strict Rules:
+1. **NEVER** create random files in project root
+2. **ALWAYS** organize files in proper directories
+3. **KEEP** docs/requirements.txt updated as SINGLE source of truth
+4. **NO** individual pip install commands - update requirements.txt first
+5. **USE** proper directory structure for all new files
+
+## Dependency Management
+1. **ALWAYS** update `docs/requirements.txt` before installing packages
+2. **USE** `pip install -r docs/requirements.txt` for all installations
+3. **NEVER** use individual `pip install` commands
+4. **KEEP** requirements.txt organized by functional areas
+5. **INCLUDE** all required dependencies (even "optional" ones that are actually needed)
 
 ---
 *Based on Quantitative Trading Constitution v1.0.0 - See `.specify/memory/constitution.md`*
-*Updated: 2025-01-17 | Lines: 65*
+*Updated: 2025-09-18 | Lines: 89*
