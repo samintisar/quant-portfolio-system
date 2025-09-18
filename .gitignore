@@ -179,3 +179,45 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Quantitative Trading System
+# Data files
+*.csv
+*.parquet
+*.h5
+*.hdf5
+data/raw/
+data/processed/
+data/cache/
+
+# Model files
+*.pkl
+*.joblib
+*.pt
+*.pth
+models/
+checkpoints/
+
+# Logs
+logs/
+*.log
+
+# Configuration secrets
+secrets/
+*.key
+*.pem
+config/local.toml
+config/production.toml
+
+# Conda environment
+conda-meta/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# VS Code
+.vscode/
+
+# Claude local configuration
+.claude/settings.local.json
