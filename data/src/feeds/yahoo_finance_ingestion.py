@@ -8,7 +8,7 @@ for equities, ETFs, FX pairs, and bonds with comprehensive validation.
 import yfinance as yf
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Union, Tuple
+from typing import Dict, List, Optional, Union, Tuple, Any
 from datetime import datetime, timedelta
 import logging
 from dataclasses import dataclass
@@ -437,14 +437,231 @@ class YahooFinanceIngestion:
             for symbol in symbols
         ]
 
+    def fetch_large_dataset(self, universe_symbols: Dict[AssetClass, List[str]],
+                           start_date: datetime, end_date: datetime,
+                           batch_size: int = 50, max_workers: int = 8,
+                           progress_callback=None) -> Dict[str, Any]:
+        """
+        Fetch large dataset for multiple asset classes with optimized processing.
+
+        Args:
+            universe_symbols: Dictionary mapping asset classes to symbol lists
+            start_date: Start date for historical data
+            end_date: End date for historical data
+            batch_size: Size of each processing batch
+            max_workers: Maximum concurrent workers
+            progress_callback: Optional callback for progress updates
+
+        Returns:
+            Dictionary with comprehensive results and statistics
+        """
+        from datetime import datetime, timedelta
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        import threading
+        from queue import Queue
+        import time
+
+        start_time = datetime.now()
+        total_symbols = sum(len(symbols) for symbols in universe_symbols.values() if symbols)
+
+        self.logger.info(f"Starting large dataset ingestion for {total_symbols} symbols")
+        self.logger.info(f"Date range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+
+        # Progress tracking
+        class Progress:
+            def __init__(self):
+                self.total_symbols = total_symbols
+                self.completed_symbols = 0
+                self.successful_symbols = 0
+                self.failed_symbols = 0
+                self.start_time = start_time
+                self.last_update = start_time
+                self.errors = []
+                self.warnings = []
+                self._lock = threading.Lock()
+
+            def update(self, success: bool, error: str = None, warning: str = None):
+                with self._lock:
+                    self.completed_symbols += 1
+                    if success:
+                        self.successful_symbols += 1
+                    else:
+                        self.failed_symbols += 1
+                        if error:
+                            self.errors.append(error)
+                    if warning:
+                        self.warnings.append(warning)
+                    self.last_update = datetime.now()
+
+        progress = Progress()
+        all_results = {}
+
+        # Process each asset class
+        for asset_class, symbols in universe_symbols.items():
+            if not symbols:
+                continue
+
+            self.logger.info(f"Processing {asset_class.value}: {len(symbols)} symbols")
+
+            # Create batches
+            all_requests = self.create_batch_requests(symbols, asset_class, start_date, end_date)
+            batches = [all_requests[i:i + batch_size] for i in range(0, len(all_requests), batch_size)]
+
+            # Process batches with limited concurrency
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {
+                    executor.submit(self._process_batch_with_retry, batch): batch
+                    for batch in batches
+                }
+
+                for future in as_completed(futures):
+                    try:
+                        batch_results = future.result()
+                        all_results.update(batch_results)
+
+                        # Update progress
+                        for symbol, result in batch_results.items():
+                            progress.update(
+                                success=result.success,
+                                error=f"{symbol}: {result.error_message}" if result.error_message else None,
+                                warning=f"{symbol}: {len(result.validation_result.warnings)} warnings" if result.validation_result and result.validation_result.warnings else None
+                            )
+
+                        # Progress callback
+                        if progress_callback and progress.completed_symbols % 10 == 0:
+                            progress_callback(progress)
+
+                    except Exception as e:
+                        self.logger.error(f"Error processing batch: {e}")
+                        # Mark all symbols in batch as failed
+                        batch = futures[future]
+                        for request in batch:
+                            all_results[request.symbol] = IngestionResult(
+                                success=False,
+                                data=None,
+                                metadata={'symbol': request.symbol},
+                                validation_result=None,
+                                warnings=[],
+                                error_message=str(e)
+                            )
+                            progress.update(success=False, error=f"{request.symbol}: {e}")
+
+        # Calculate final statistics
+        total_time = (datetime.now() - start_time).total_seconds()
+        overall_success_rate = progress.successful_symbols / total_symbols if total_symbols > 0 else 0
+
+        return {
+            'ingestion_complete': True,
+            'start_time': start_time.isoformat(),
+            'end_time': datetime.now().isoformat(),
+            'total_time_seconds': total_time,
+            'total_symbols': total_symbols,
+            'successful_symbols': progress.successful_symbols,
+            'failed_symbols': progress.failed_symbols,
+            'overall_success_rate': overall_success_rate,
+            'symbols_per_second': total_symbols / total_time if total_time > 0 else 0,
+            'errors': progress.errors[-10:] if len(progress.errors) > 10 else progress.errors,
+            'warnings': progress.warnings[-10:] if len(progress.warnings) > 10 else progress.warnings,
+            'total_errors': len(progress.errors),
+            'total_warnings': len(progress.warnings),
+            'detailed_results': all_results
+        }
+
+    def _process_batch_with_retry(self, batch: List[DataRequest], max_retries: int = 3,
+                                  retry_delay: float = 5.0, timeout: float = 300.0) -> Dict[str, IngestionResult]:
+        """Process a batch with retry logic and timeout handling."""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        for attempt in range(max_retries):
+            try:
+                if attempt > 0:
+                    self.logger.info(f"Retry attempt {attempt + 1} for batch of {len(batch)} symbols")
+                    time.sleep(retry_delay * (2 ** attempt))  # Exponential backoff
+
+                # Process batch with timeout
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(self.fetch_multiple_assets, batch)
+                    try:
+                        return future.result(timeout=timeout)
+                    except Exception as e:
+                        raise TimeoutError(f"Batch timed out after {timeout} seconds: {e}")
+
+            except Exception as e:
+                self.logger.error(f"Batch attempt {attempt + 1} failed: {e}")
+                if attempt == max_retries - 1:
+                    # Final attempt failed, mark all as failed
+                    results = {}
+                    for request in batch:
+                        results[request.symbol] = IngestionResult(
+                            success=False,
+                            data=None,
+                            metadata={'symbol': request.symbol},
+                            validation_result=None,
+                            warnings=[],
+                            error_message=f"All retry attempts failed: {e}"
+                        )
+                    return results
+
+        return {}
+
+    def incremental_update(self, universe_symbols: Dict[AssetClass, List[str]],
+                          days_to_update: int = 7) -> Dict[str, Any]:
+        """Perform incremental data update for recent data."""
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days_to_update)
+
+        self.logger.info(f"Starting incremental data update for last {days_to_update} days")
+        return self.fetch_large_dataset(universe_symbols, start_date, end_date)
+
+    def validate_data_quality(self, results: Dict[str, IngestionResult]) -> Dict[str, Any]:
+        """Validate the quality of ingested data."""
+        quality_report = {
+            'total_symbols_checked': len(results),
+            'data_quality_issues': [],
+            'coverage_analysis': {},
+            'completeness_score': 0.0
+        }
+
+        total_data_points = 0
+        complete_data_points = 0
+
+        for symbol, result in results.items():
+            if result.success and result.data is not None:
+                data_points = len(result.data)
+                total_data_points += data_points
+
+                # Check for missing data
+                missing_pct = result.data.isnull().sum().sum() / (result.data.shape[0] * result.data.shape[1]) * 100
+                complete_data_points += data_points * (1 - missing_pct / 100)
+
+                if missing_pct > 5:  # More than 5% missing data
+                    quality_report['data_quality_issues'].append({
+                        'symbol': symbol,
+                        'issue': 'high_missing_data',
+                        'missing_percentage': missing_pct
+                    })
+
+                # Check for data gaps
+                if result.data.index.to_series().diff().max() > timedelta(days=7):
+                    quality_report['data_quality_issues'].append({
+                        'symbol': symbol,
+                        'issue': 'data_gaps',
+                        'max_gap_days': result.data.index.to_series().diff().max().days
+                    })
+
+        # Calculate overall completeness score
+        quality_report['completeness_score'] = complete_data_points / total_data_points if total_data_points > 0 else 0
+
+        return quality_report
+
 
 # Import time module for rate limiting
 import time
 
 
-def create_default_ingestion() -> YahooFinanceIngestion:
+def create_default_ingestion(max_workers=5) -> YahooFinanceIngestion:
     """Create a default Yahoo Finance ingestion instance."""
-    return YahooFinanceIngestion(max_workers=5, rate_limit=0.1)
+    return YahooFinanceIngestion(max_workers=max_workers, rate_limit=0.1)
 
 
 # Example usage and convenience functions

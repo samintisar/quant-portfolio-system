@@ -95,6 +95,7 @@ quant-portfolio-system/
 3. **KEEP** docs/requirements.txt updated as SINGLE source of truth
 4. **NO** individual pip install commands - update requirements.txt first
 5. **USE** proper directory structure for all new files
+6. **NEVER** create separate "enhanced", "expanded", "improved", or similar variant files - update existing files instead
 
 ## Dependency Management
 1. **ALWAYS** update `docs/requirements.txt` before installing packages

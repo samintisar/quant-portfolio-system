@@ -471,6 +471,139 @@ class MarketDataStorage:
 
         return df
 
+    # Multi-year data management methods
+    def get_data_coverage_summary(self) -> Dict[str, Any]:
+        """Get summary of current data coverage for multi-year analysis."""
+        storage_info = self.get_storage_info()
+        available_symbols = self.get_available_symbols()
+
+        # Group by asset class
+        symbols_by_class = {}
+        for asset_class in AssetClass:
+            symbols_by_class[asset_class.value] = self.get_available_symbols(asset_class)
+
+        # Calculate data age statistics
+        data_ages = {}
+        for key, metadata in self.metadata_registry.items():
+            start_date = datetime.fromisoformat(metadata.start_date)
+            end_date = datetime.fromisoformat(metadata.end_date)
+            data_ages[key] = {
+                'start_date': start_date,
+                'end_date': end_date,
+                'days_span': (end_date - start_date).days,
+                'days_since_update': (datetime.now() - end_date).days
+            }
+
+        return {
+            'storage_info': storage_info,
+            'total_unique_symbols': len(available_symbols),
+            'symbols_by_asset_class': symbols_by_class,
+            'data_ages': data_ages,
+            'oldest_data': min(data_ages.values(), key=lambda x: x['start_date'])['start_date'] if data_ages else None,
+            'newest_data': max(data_ages.values(), key=lambda x: x['end_date'])['end_date'] if data_ages else None,
+            'average_update_age': sum(d['days_since_update'] for d in data_ages.values()) / len(data_ages) if data_ages else 0
+        }
+
+    def estimate_storage_requirements(self, symbols_by_class: Dict[AssetClass, List[str]],
+                                   years: int = 10) -> Dict[str, Any]:
+        """Estimate storage requirements for multi-year data."""
+        # Estimates based on typical data sizes
+        data_points_per_year = {
+            AssetClass.EQUITY: 252,    # Trading days
+            AssetClass.ETF: 252,
+            AssetClass.FX: 365,        # Every day
+            AssetClass.BOND: 252,
+            AssetClass.COMMODITY: 252,
+            AssetClass.INDEX: 252
+        }
+
+        bytes_per_data_point = 500  # Rough estimate including all OHLCV + derived data
+
+        total_estimates = {
+            'years': years,
+            'by_asset_class': {},
+            'total_symbols': sum(len(symbols) for symbols in symbols_by_class.values()),
+            'total_estimated_gb': 0
+        }
+
+        for asset_class, symbols in symbols_by_class.items():
+            if symbols:
+                data_points = len(symbols) * years * data_points_per_year.get(asset_class, 252)
+                estimated_bytes = data_points * bytes_per_data_point
+                estimated_gb = estimated_bytes / (1024**3)
+
+                total_estimates['by_asset_class'][asset_class.value] = {
+                    'symbol_count': len(symbols),
+                    'estimated_data_points': data_points,
+                    'estimated_gb': estimated_gb
+                }
+
+                total_estimates['total_estimated_gb'] += estimated_gb
+
+        return total_estimates
+
+    def cleanup_old_data(self, keep_years: int = 5, dry_run: bool = False) -> Dict[str, Any]:
+        """Clean up old data files based on retention policy."""
+        cutoff_date = datetime.now() - timedelta(days=keep_years * 365)
+
+        files_to_remove = []
+        total_size_freed = 0
+
+        for key, metadata in self.metadata_registry.items():
+            end_date = datetime.fromisoformat(metadata.end_date)
+            if end_date < cutoff_date:
+                files_to_remove.append({
+                    'key': key,
+                    'symbol': metadata.symbol,
+                    'asset_class': metadata.asset_class,
+                    'end_date': end_date,
+                    'file_size': metadata.file_size,
+                    'age_days': (datetime.now() - end_date).days
+                })
+                total_size_freed += metadata.file_size
+
+        if dry_run:
+            return {
+                'dry_run': True,
+                'files_to_remove': len(files_to_remove),
+                'total_size_freed_bytes': total_size_freed,
+                'total_size_freed_mb': total_size_freed / (1024 * 1024),
+                'cutoff_date': cutoff_date.isoformat(),
+                'files': files_to_remove
+            }
+
+        # Actually remove files
+        removed_count = 0
+        for file_info in files_to_remove:
+            try:
+                # Remove from metadata registry
+                del self.metadata_registry[file_info['key']]
+
+                # Remove actual file
+                asset_dir = self.base_path / "raw" / file_info['asset_class']
+                filename_pattern = f"{file_info['symbol']}_*.*"
+                matching_files = list(asset_dir.glob(filename_pattern))
+
+                for file_path in matching_files:
+                    file_path.unlink()
+
+                removed_count += 1
+                self.logger.info(f"Removed old data for {file_info['symbol']}")
+
+            except Exception as e:
+                self.logger.error(f"Error removing {file_info['symbol']}: {e}")
+
+        # Save updated metadata
+        self._save_metadata_registry()
+
+        return {
+            'dry_run': False,
+            'files_removed': removed_count,
+            'total_size_freed_bytes': total_size_freed,
+            'total_size_freed_mb': total_size_freed / (1024 * 1024),
+            'cutoff_date': cutoff_date.isoformat()
+        }
+
 
 def create_default_storage() -> MarketDataStorage:
     """Create a default market data storage instance."""
