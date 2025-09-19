@@ -1,410 +1,330 @@
 # CLI Documentation for Quantitative Trading System
 
-This document describes the command-line interfaces available for the quantitative trading system, providing comprehensive tools for environment management, dependency validation, testing, and configuration management.
+This document describes the command-line interfaces available for the quantitative trading system, providing comprehensive tools for data preprocessing, quality reporting, and pipeline management.
 
 ## Available CLI Tools
 
-### 1. Environment Management CLI (`quant-env`)
+### 1. Data Preprocessing CLI (`preprocess`)
 
-**Location**: `cli/quant-env.py`
-**Purpose**: Manage Python virtual environments for quantitative trading
+**Location**: `data/src/cli/preprocess.py`
+**Purpose**: Command-line interface for data preprocessing with quality reporting
 
 #### Commands
 
-##### Environment Creation
+##### Basic Data Preprocessing
 ```bash
-# Create a new environment with Python 3.11
-quant-env create my-trading-env --python 3.11
+# Preprocess data with default settings
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/
 
-# Create environment with core dependencies
-quant-env create my-trading-env --python 3.11 --with-deps
+# Preprocess with specific configuration
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --config config/pipeline_config.json
 
-# Create environment in specific path
-quant-env create my-trading-env --python 3.11 --path /path/to/envs
+# Preprocess with quality reporting
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --report
+
+# Preprocess with custom cleaning parameters
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --cleaning-method iqr --cleaning-threshold 1.5
 ```
 
-##### Environment Management
+##### Advanced Options
 ```bash
-# List all environments
-quant-env list
+# Preprocess with specific normalization method
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --normalization z_score
 
-# Get environment information
-quant-env info my-trading-env
+# Preprocess with missing value handling strategy
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --missing-strategy forward_fill
 
-# Validate environment integrity
-quant-env validate my-trading-env
+# Preprocess with validation enabled
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --validate
 
-# Export environment configuration
-quant-env export my-trading-env --output my-env-config.json
-
-# Remove environment (requires --force)
-quant-env remove my-trading-env --force
+# Preprocess with verbose output
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --verbose
 ```
 
-##### Activation/Deactivation
+##### File Format Support
 ```bash
-# Activate environment (note: requires shell integration)
-quant-env activate my-trading-env
+# Process CSV files
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --format csv
 
-# Deactivate current environment
-quant-env deactivate
+# Process Parquet files
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --format parquet
+
+# Process multiple formats
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --format auto
 ```
 
 #### Output Formats
 
-All commands support both human-readable and JSON output:
+The preprocessing CLI supports multiple output formats:
 
 ```bash
-# Human-readable (default)
-quant-env list
+# Generate comprehensive report
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --report --report-format json
 
-# JSON format
-quant-env list --json
+# Generate HTML report
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --report --report-format html
 
-# Verbose output
-quant-env list --verbose
-
-# Dry-run mode
-quant-env create test-env --dry-run
+# Save processing statistics
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --stats --stats-file processing_stats.json
 ```
 
-#### Error Handling
+### 2. Data Quality Reporting CLI (`quality_report`)
 
-The CLI provides comprehensive error reporting with appropriate exit codes:
-- `0`: Success
-- `1`: Invalid input
-- `2`: Operation failed
-- `3`: Permission denied
-- `4`: Timeout
-
-### 2. Dependency Management CLI (`quant-dep`)
-
-**Location**: `cli/quant-dep.py`
-**Purpose**: Validate and manage package dependencies in trading environments
+**Location**: `data/src/cli/quality_report.py`
+**Purpose**: Automated data quality assessment and reporting
 
 #### Commands
 
-##### Dependency Validation
+##### Generate Quality Reports
 ```bash
-# Validate all dependencies in an environment
-quant-dep validate --env my-trading-env
+# Generate basic quality report
+python -m data.src.cli.quality_report --data data/processed/
 
-# Validate specific package
-quant-dep validate --env my-trading-env --package numpy
+# Generate report with specific metrics
+python -m data.src.cli.quality_report --data data/processed/ --metrics completeness,accuracy,consistency
 
-# Check for security vulnerabilities
-quant-dep validate --env my-trading-env --package pandas
+# Generate report with custom thresholds
+python -m data.src.cli.quality_report --data data/processed/ --threshold-completeness 0.95 --threshold-accuracy 0.99
+
+# Generate comprehensive report
+python -m data.src.cli.quality_report --data data/processed/ --comprehensive
 ```
 
-##### Dependency Installation
+##### Report Output Options
 ```bash
-# Install a package
-quant-dep install --env my-trading-env --package numpy --version 2.1.0
+# Save report to JSON file
+python -m data.src.cli.quality_report --data data/processed/ --output quality_report.json
 
-# Install latest version
-quant-dep install --env my-trading-env --package scipy
+# Save report to HTML file
+python -m data.src.cli.quality_report --data data/processed/ --output quality_report.html --format html
 
-# Uninstall a package
-quant-dep uninstall --env my-trading-env --package old-package
+# Generate CSV summary
+python -m data.src.cli.quality_report --data data/processed/ --output quality_summary.csv --format csv
+
+# Generate multiple formats
+python -m data.src.cli.quality_report --data data/processed/ --output quality_report --format all
 ```
 
-##### Dependency Information
+##### Advanced Analysis
 ```bash
-# List all dependencies
-quant-dep list --env my-trading-env
+# Include statistical analysis
+python -m data.src.cli.quality_report --data data/processed/ --statistical
 
-# Get package information
-quant-dep info --env my-trading-env --package numpy
+# Include outlier detection
+python -m data.src.cli.quality_report --data data/processed/ --outliers
 
-# Upgrade a package
-quant-dep upgrade --env my-trading-env --package numpy --version 2.2.0
+# Include trend analysis
+python -m data.src.cli.quality_report --data data/processed/ --trends
+
+# Include correlation analysis
+python -m data.src.cli.quality_report --data data/processed/ --correlation
 ```
 
-##### Conflict Detection
-```bash
-# Check for dependency conflicts
-quant-dep check-conflicts --env my-trading-env
+#### Quality Metrics
 
-# Export dependency manifest
-quant-dep export --env my-trading-env --output dependencies.json
-```
-
-#### Version Pinning and Security
-
-The dependency management system includes:
-- **Version pinning**: Exact version specifications for reproducibility
-- **Security validation**: Checks against known vulnerabilities
-- **Compatibility verification**: Python version compatibility checks
-- **Conflict resolution**: Automatic detection of dependency conflicts
-
-### 3. Testing Framework CLI (`quant-test`)
-
-**Location**: `cli/quant-test.py`
-**Purpose**: Execute tests, statistical validation, and performance benchmarks
-
-#### Commands
-
-##### Test Execution
-```bash
-# Run all tests
-quant-test run
-
-# Run specific test types
-quant-test run --type unit
-quant-test run --type integration
-quant-test run --type contract
-
-# Use specific testing framework
-quant-test run --type unit --framework pytest
-```
-
-##### Library Validation
-```bash
-# Validate a trading library
-quant-test validate --library momentum-strategy
-
-# Run statistical tests
-quant-test statistical --library momentum-strategy --test normality
-
-# Run backtests
-quant-test backtest --library momentum-strategy --start 2023-01-01 --end 2023-12-31
-```
-
-##### Coverage and Reporting
-```bash
-# Calculate test coverage
-quant-test coverage --library momentum-strategy
-
-# Generate test reports
-quant-test report --library momentum-strategy --output test-report.json
-
-# Run performance benchmarks
-quant-test benchmark --test portfolio-optimization --iterations 1000
-```
-
-#### Statistical Validation
-
-The testing framework includes comprehensive statistical validation:
-- **Normality tests**: Shapiro-Wilk, Kolmogorov-Smirnov
-- **Stationarity tests**: Augmented Dickey-Fuller
-- **Autocorrelation tests**: Ljung-Box, Durbin-Watson
-- **Backtesting validation**: Walk-forward analysis, out-of-sample testing
-
-### 4. Configuration Management CLI (`quant-config`)
-
-**Location**: `cli/quant-config.py`
-**Purpose**: Manage system and library configurations
-
-#### Commands
-
-##### Configuration Initialization
-```bash
-# Initialize configuration system
-quant-config init --type TOML
-
-# Initialize with repository integration
-quant-config init --type TOML --repo /path/to/repo
-```
-
-##### Configuration Management
-```bash
-# Validate configuration
-quant-config validate --config config.toml
-quant-config validate --environment development
-
-# Get configuration values
-quant-config get --key trading.initial_capital
-quant-config get --environment development --key risk.max_position_size
-
-# Set configuration values
-quant-config set --key trading.initial_capital --value 1000000
-quant-config set --environment testing --key backtest.start_date --value "2023-01-01"
-```
-
-##### Configuration Analysis
-```bash
-# List configurations
-quant-config list
-quant-config list --environment production
-quant-config list --structure
-
-# Synchronize with repository
-quant-config sync --repo /path/to/repo
-
-# Detect configuration drift
-quant-config drift --reference base-config.toml --current current-config.toml
-
-# Export configurations
-quant-config export --environment production --output prod-config.toml
-```
-
-##### Library-Specific Configuration
-```bash
-# Get library configuration
-quant-config library --library momentum-strategy --action get
-
-# Update library configuration
-quant-config library --library momentum-strategy --action update --updates "lookback_period=20,risk_factor=0.02"
-```
+The quality reporting system includes comprehensive metrics:
+- **Completeness**: Percentage of non-null values
+- **Accuracy**: Validation against business rules
+- **Consistency**: Cross-field validation
+- **Timeliness**: Data freshness and currency
+- **Uniqueness**: Duplicate detection
+- **Validity**: Format and type validation
+- **Statistical Properties**: Distribution analysis, outlier detection
 
 ## Configuration Files
 
-### Environment Configuration
+### Preprocessing Pipeline Configuration
 
-```toml
-[environment]
-name = "quant-trading-env"
-python_version = "3.11"
-base_path = "/path/to/envs"
-
-[dependencies]
-numpy = "2.1.0"
-pandas = "2.2.1"
-scipy = "1.13.0"
+```json
+{
+  "cleaning": {
+    "outlier_method": "iqr",
+    "outlier_threshold": 1.5,
+    "missing_strategy": "forward_fill",
+    "time_gap_handling": "interpolate"
+  },
+  "validation": {
+    "check_bounds": true,
+    "check_duplicates": true,
+    "check_financial_logic": true,
+    "statistical_validation": true
+  },
+  "normalization": {
+    "method": "z_score",
+    "preserve_relationships": true,
+    "handle_financial_edge_cases": true
+  },
+  "quality": {
+    "completeness_threshold": 0.95,
+    "accuracy_threshold": 0.99,
+    "consistency_threshold": 0.98
+  }
+}
 ```
 
-### Trading Configuration
+### Data Quality Configuration
 
-```toml
-[trading]
-initial_capital = 1000000
-max_position_size = 0.05
-risk_free_rate = 0.02
-
-[backtesting]
-start_date = "2023-01-01"
-end_date = "2023-12-31"
-benchmark = "SPY"
-
-[risk_management]
-max_drawdown = 0.15
-var_confidence = 0.95
-position_limits = { single_name = 0.05, sector = 0.20 }
+```json
+{
+  "metrics": ["completeness", "accuracy", "consistency", "timeliness"],
+  "thresholds": {
+    "completeness": 0.95,
+    "accuracy": 0.99,
+    "consistency": 0.98,
+    "timeliness": 0.90
+  },
+  "validation": {
+    "statistical_tests": true,
+    "outlier_detection": true,
+    "trend_analysis": true,
+    "correlation_analysis": true
+  }
+}
 ```
 
 ## Integration Examples
 
-### Complete Workflow Example
+### Complete Data Processing Workflow
 
 ```bash
-# 1. Create environment
-quant-env create my-trading-system --python 3.11 --with-deps
+# 1. Setup environment and install dependencies
+python scripts/setup_data_environment.py
+pip install -r docs/requirements.txt
 
-# 2. Initialize configuration
-quant-config init --type TOML
+# 2. Ingest historical data
+python scripts/initialize_historical_data.py --symbols AAPL,GOOGL,MSFT --start-date 2023-01-01
 
-# 3. Configure trading parameters
-quant-config set --key trading.initial_capital --value 1000000
-quant-config set --key risk.max_drawdown --value 0.15
+# 3. Preprocess data with quality reporting
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --report --config config/pipeline_config.json
 
-# 4. Install additional dependencies
-quant-dep install --env my-trading-system --package yfinance --version 0.2.28
-quant-dep install --env my-trading-system --package vectorbt --version 1.2.0
+# 4. Generate comprehensive quality report
+python -m data.src.cli.quality_report --data data/processed/ --output quality_report.json --comprehensive --statistical
 
-# 5. Run validation tests
-quant-test validate --library momentum-strategy
-quant-test run --type integration
+# 5. Run automated data refresh
+python scripts/automated_data_refresh.py --config config/refresh_config.json
 
-# 6. Generate reports
-quant-test coverage --library momentum-strategy
-quant-config export --environment production --output final-config.toml
+# 6. Validate preprocessing results
+python scripts/run_preprocessing.py --validate --output validation_report.json
 ```
 
 ### CI/CD Integration
 
 ```yaml
 # Example GitHub Actions workflow
-name: Trading System Tests
+name: Data Processing Pipeline
 
 on: [push, pull_request]
 
 jobs:
-  test:
+  data_processing:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
 
       - name: Setup environment
         run: |
-          python cli/quant-env.py create ci-env --python 3.11 --with-deps
-          python cli/quant-dep.py install --env ci-env --package pytest
+          python scripts/setup_data_environment.py
+          pip install -r docs/requirements.txt
 
-      - name: Validate configuration
-        run: python cli/quant-config.py validate --environment testing
+      - name: Run preprocessing
+        run: |
+          python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --report
 
-      - name: Run tests
-        run: python cli/quant-test.py run --type all --framework pytest
+      - name: Generate quality report
+        run: |
+          python -m data.src.cli.quality_report --data data/processed/ --output quality_report.json
 
-      - name: Generate coverage report
-        run: python cli/quant-test.py coverage --library momentum-strategy
+      - name: Validate results
+        run: |
+          python scripts/run_preprocessing.py --validate
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: processing-results
+          path: |
+            data/processed/
+            quality_report.json
+            validation_report.json
 ```
 
 ## Best Practices
 
-### Environment Management
+### Data Preprocessing
 
-1. **Always use virtual environments** for trading system development
-2. **Pin dependency versions** for reproducible research
-3. **Regularly validate environments** for integrity
-4. **Export environment configurations** for team sharing
+1. **Always validate data quality** before quantitative analysis
+2. **Use appropriate normalization** methods for different data types
+3. **Monitor memory usage** when processing large datasets
+4. **Preserve statistical relationships** during normalization
+5. **Handle financial edge cases** (zero prices, negative volumes, extreme moves)
 
-### Configuration Management
+### Quality Management
 
-1. **Use environment-specific configurations** (development, testing, production)
-2. **Validate configurations** before deployment
-3. **Monitor configuration drift** in production
-4. **Version control configuration files** with appropriate security measures
+1. **Set appropriate thresholds** for quality metrics based on use case
+2. **Monitor quality trends** over time
+3. **Investigate quality degradation** immediately
+4. **Document quality issues** and resolution steps
+5. **Automate quality reporting** for regular monitoring
 
-### Testing
+### Performance Optimization
 
-1. **Run contract tests** before implementation
-2. **Perform statistical validation** on all trading strategies
-3. **Maintain high test coverage** (>80% target)
-4. **Regular performance benchmarking** to identify optimization opportunities
+1. **Use appropriate file formats** (Parquet recommended for large datasets)
+2. **Batch process** when possible to reduce overhead
+3. **Monitor memory usage** and optimize for large datasets
+4. **Cache intermediate results** for repeated processing
+5. **Use parallel processing** for independent operations
 
 ## Performance Considerations
 
 All CLI tools are optimized for performance with the following targets:
-- **Environment validation**: < 5 seconds
-- **Dependency validation**: < 2 seconds per package
-- **Test execution**: < 1ms per data point
-- **Configuration operations**: < 100ms
+- **Preprocessing Speed**: 10 million data points in <30 seconds
+- **Memory Efficiency**: <4GB memory usage for large datasets
+- **Real-time Processing**: Sub-second processing for 1K data batches
+- **Quality Assessment**: <5 seconds for standard quality reports
 
 For large datasets or complex operations, consider using:
+- `--format parquet` for better performance with large files
+- `--batch-size` option to control memory usage
+- `--parallel` flag for multi-core processing
 - `--dry-run` flag for validation without execution
-- `--json` output for programmatic processing
-- Batch operations for multiple items
 
 ## Security Considerations
 
-- **Never commit sensitive configuration** to version control
-- **Use environment variables** for secrets and API keys
-- **Regularly validate dependencies** for security vulnerabilities
-- **Restrict CLI permissions** based on user roles
-- **Audit configuration changes** in production environments
+- **Never commit sensitive data** to version control
+- **Use environment variables** for API keys and secrets
+- **Validate data sources** before processing
+- **Monitor data access patterns** for unusual activity
+- **Implement proper access controls** for data storage
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Permission denied errors**: Ensure proper file permissions and virtual environment activation
-2. **Dependency conflicts**: Use `quant-dep check-conflicts` to identify issues
-3. **Configuration validation failures**: Check syntax and required fields
-4. **Test failures**: Review error messages and check environment setup
+1. **Memory errors**: Reduce batch size or use streaming processing
+2. **Permission denied**: Check file permissions and storage paths
+3. **Missing dependencies**: Install required packages from requirements.txt
+4. **Invalid data format**: Validate input data before processing
+5. **Configuration errors**: Check JSON syntax and configuration structure
 
 ### Debug Mode
 
 Enable verbose logging for troubleshooting:
 
 ```bash
-quant-env create test-env --verbose --dry-run
-quant-test run --type unit --verbose
-quant-config validate --config config.toml --verbose
+# Enable verbose output
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --verbose
+
+# Dry run to test configuration
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --dry-run --verbose
+
+# Debug quality assessment
+python -m data.src.cli.quality_report --data data/processed/ --verbose --debug
 ```
 
 ### Support
 
 For additional support:
-- Check the log files in `logs/` directory
+- Check the processing logs in the output directory
 - Review the project documentation in `docs/`
-- Open an issue in the project repository
+- Examine the configuration examples in `config/`
+- Open an issue in the project repository with detailed error information

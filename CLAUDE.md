@@ -17,6 +17,7 @@ You are working on a quantitative trading and portfolio optimization system that
 - **Optimization**: CVXPY, Riskfolio-Lib
 - **Backtesting**: Vectorbt
 - **Visualization**: Matplotlib, Plotly, Streamlit
+- **Data Preprocessing**: Custom libraries for cleaning, validation, normalization
 
 ## Mathematical Focus Areas
 1. **Time Series Analysis**: ARIMA, GARCH models for returns/volatility
@@ -37,6 +38,7 @@ You are working on a quantitative trading and portfolio optimization system that
 - **Max Drawdown**: < 15% under normal conditions
 - **Benchmark Outperformance**: > 200 bps annually vs S&P 500
 - **Concentration Limits**: < 5% single name, < 20% sector
+- **Data Processing**: 10M data points in <30 seconds, memory usage <4GB
 
 ## Code Conventions
 - Use type hints for all financial data structures
@@ -64,9 +66,9 @@ This project follows the Quantitative Trading System Constitution (v1.0.0):
 
 ## Recent Changes
 <!-- Auto-updated by scripts - keep last 3 entries -->
-- 2025-09-18: Complete data ingestion and storage system implemented
-- 2025-09-18: Yahoo Finance API integration with persistent storage
-- 2025-09-18: Multi-asset class support (equities, ETFs, FX, bonds)
+- 2025-09-18: Complete data preprocessing system with cleaning, validation, and normalization
+- 2025-09-18: Comprehensive unit and performance tests for preprocessing libraries
+- 2025-09-18: Performance benchmarks: 10M data points in <30 seconds, <4GB memory usage
 
 ## Repository Organization
 **MAINTAIN CLEAN PROJECT STRUCTURE - NO RANDOM FILES IN ROOT!**
@@ -77,6 +79,11 @@ quant-portfolio-system/
 ├── data/                          # Data handling ONLY
 │   ├── src/                       # Source code modules
 │   │   ├── feeds/                 # Data ingestion
+│   │   ├── lib/                   # Preprocessing libraries (cleaning, validation, normalization)
+│   │   ├── models/                # Data models and entities
+│   │   ├── services/              # Data processing services
+│   │   ├── config/                # Configuration management
+│   │   ├── cli/                   # Command-line interfaces
 │   │   └── storage/               # Data storage
 │   └── storage/                   # Actual data files (created at runtime)
 ├── scripts/                       # Utility and demo scripts
@@ -85,6 +92,10 @@ quant-portfolio-system/
 ├── portfolio/                     # Portfolio optimization
 ├── strategies/                    # Trading strategies
 ├── tests/                         # Unit tests
+│   ├── unit/                      # Unit tests for libraries
+│   ├── statistical/               # Statistical validation tests
+│   ├── performance/               # Performance and memory tests
+│   └── integration/               # Integration tests
 ├── config/                        # Configuration files
 └── output/                        # Analysis outputs
 ```
@@ -104,6 +115,36 @@ quant-portfolio-system/
 4. **KEEP** requirements.txt organized by functional areas
 5. **INCLUDE** all required dependencies (even "optional" ones that are actually needed)
 
+## Data Preprocessing System
+
+### Core Libraries
+- **Cleaning Library** (`data/src/lib/cleaning.py`): Missing value handling, outlier detection, time gap management
+- **Validation Library** (`data/src/lib/validation.py`): Data integrity checks, financial logic validation
+- **Normalization Library** (`data/src/lib/normalization.py`): Z-score, Min-Max, Robust scaling with financial specialization
+
+### Performance Requirements
+- **Processing Speed**: 10 million data points in under 30 seconds
+- **Memory Efficiency**: Less than 4GB memory usage for large datasets
+- **Real-time Processing**: Sub-second processing for 1K data batches
+- **Scalability**: Linear scaling with dataset size
+
+### Usage Guidelines
+1. **Always validate data quality** before quantitative analysis
+2. **Use appropriate normalization** methods for different data types
+3. **Monitor memory usage** when processing large datasets
+4. **Preserve statistical relationships** during normalization
+5. **Handle financial edge cases** (zero prices, negative volumes, extreme moves)
+
+### Testing
+- **Unit Tests**: Comprehensive mathematical validation in `tests/unit/`
+- **Performance Tests**: Benchmarking and memory validation in `tests/performance/`
+- **Statistical Tests**: Significance testing for preprocessing impact
+
+### Configuration
+- Preprocessing pipelines configured via `data/src/config/pipeline_config.py`
+- Quality thresholds and validation rules customizable per dataset
+- CLI interfaces for batch processing and quality reporting
+
 ---
 *Based on Quantitative Trading Constitution v1.0.0 - See `.specify/memory/constitution.md`*
-*Updated: 2025-09-18 | Lines: 89*
+*Updated: 2025-09-18 | Lines: 120*

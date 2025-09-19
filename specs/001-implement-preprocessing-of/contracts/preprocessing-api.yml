@@ -1,0 +1,464 @@
+openapi: 3.0.0
+info:
+  title: Data Preprocessing API
+  description: API for financial data preprocessing and quality management
+  version: 1.0.0
+  contact:
+    name: Quantitative Trading System
+    email: dev@quant-system.com
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development server
+
+paths:
+  /preprocessing/process:
+    post:
+      summary: Process raw data through preprocessing pipeline
+      description: Apply preprocessing rules to raw financial data
+      operationId: processData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessingRequest'
+      responses:
+        '200':
+          description: Data processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingResponse'
+        '400':
+          description: Invalid request parameters
+        '500':
+          description: Processing failed
+
+  /preprocessing/quality/{dataset_id}:
+    get:
+      summary: Get quality metrics for processed dataset
+      description: Retrieve comprehensive quality metrics for a processed dataset
+      operationId: getQualityMetrics
+      parameters:
+        - name: dataset_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Quality metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QualityMetricsResponse'
+        '404':
+          description: Dataset not found
+
+  /preprocessing/rules:
+    get:
+      summary: List all preprocessing rules
+      description: Retrieve available preprocessing rules
+      operationId: listRules
+      responses:
+        '200':
+          description: Rules retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PreprocessingRule'
+
+    post:
+      summary: Create new preprocessing rule
+      description: Add a new preprocessing rule to the system
+      operationId: createRule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreprocessingRule'
+      responses:
+        '201':
+          description: Rule created successfully
+        '400':
+          description: Invalid rule definition
+
+  /preprocessing/rules/{rule_id}:
+    put:
+      summary: Update preprocessing rule
+      description: Modify an existing preprocessing rule
+      operationId: updateRule
+      parameters:
+        - name: rule_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreprocessingRule'
+      responses:
+        '200':
+          description: Rule updated successfully
+        '404':
+          description: Rule not found
+        '400':
+          description: Invalid rule definition
+
+    delete:
+      summary: Delete preprocessing rule
+      description: Remove a preprocessing rule from the system
+      operationId: deleteRule
+      parameters:
+        - name: rule_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Rule deleted successfully
+        '404':
+          description: Rule not found
+
+  /preprocessing/logs/{dataset_id}:
+    get:
+      summary: Get processing logs for dataset
+      description: Retrieve detailed processing logs for a dataset
+      operationId: getProcessingLogs
+      parameters:
+        - name: dataset_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProcessingLog'
+
+components:
+  schemas:
+    ProcessingRequest:
+      type: object
+      required:
+        - data
+        - config
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketData'
+          description: Raw market data to process
+        config:
+          $ref: '#/components/schemas/PreprocessingConfig'
+          description: Preprocessing configuration
+
+    ProcessingResponse:
+      type: object
+      properties:
+        dataset_id:
+          type: string
+          description: Unique identifier for processed dataset
+        processed_data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProcessedData'
+        quality_metrics:
+          $ref: '#/components/schemas/QualityMetrics'
+        processing_logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProcessingLog'
+        execution_stats:
+          $ref: '#/components/schemas/ExecutionStats'
+
+    MarketData:
+      type: object
+      required:
+        - symbol
+        - timestamp
+        - close
+      properties:
+        symbol:
+          type: string
+          example: "AAPL"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-01T00:00:00Z"
+        open:
+          type: number
+          example: 150.25
+        high:
+          type: number
+          example: 152.50
+        low:
+          type: number
+          example: 149.75
+        close:
+          type: number
+          example: 151.30
+        volume:
+          type: integer
+          example: 1000000
+        data_source:
+          type: string
+          example: "yahoo_finance"
+        frequency:
+          type: string
+          example: "1d"
+
+    ProcessedData:
+      type: object
+      properties:
+        symbol:
+          type: string
+          example: "AAPL"
+        timestamp:
+          type: string
+          format: date-time
+        open_normalized:
+          type: number
+          example: 0.25
+        high_normalized:
+          type: number
+          example: 0.75
+        low_normalized:
+          type: number
+          example: 0.15
+        close_normalized:
+          type: number
+          example: 0.30
+        volume_normalized:
+          type: number
+          example: 0.60
+        returns:
+          type: number
+          example: 0.0069
+        volatility:
+          type: number
+          example: 0.15
+        quality_flags:
+          type: object
+          properties:
+            completeness:
+              type: number
+              example: 0.98
+            consistency:
+              type: number
+              example: 0.95
+            accuracy:
+              type: number
+              example: 0.99
+        outlier_flags:
+          type: object
+          properties:
+            price_outliers:
+              type: integer
+              example: 0
+            volume_outliers:
+              type: integer
+              example: 1
+
+    PreprocessingConfig:
+      type: object
+      properties:
+        pipeline_id:
+          type: string
+          example: "equity_daily_v1"
+        missing_value_handling:
+          type: object
+          properties:
+            method:
+              type: string
+              enum: [forward_fill, interpolation, mean, median, drop]
+              example: "forward_fill"
+            threshold:
+              type: number
+              example: 0.1
+        outlier_detection:
+          type: object
+          properties:
+            method:
+              type: string
+              enum: [zscore, iqr, percentile, custom]
+              example: "zscore"
+            threshold:
+              type: number
+              example: 3.0
+            action:
+              type: string
+              enum: [clip, remove, flag]
+              example: "clip"
+        normalization:
+          type: object
+          properties:
+            method:
+              type: string
+              enum: [zscore, minmax, robust, percentile]
+              example: "zscore"
+            preserve_stats:
+              type: boolean
+              example: true
+        quality_thresholds:
+          type: object
+          properties:
+            completeness:
+              type: number
+              minimum: 0
+              maximum: 1
+              example: 0.95
+            consistency:
+              type: number
+              minimum: 0
+              maximum: 1
+              example: 0.90
+
+    QualityMetrics:
+      type: object
+      properties:
+        completeness:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.98
+        consistency:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.95
+        accuracy:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.99
+        timeliness:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 1.0
+        overall_score:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.97
+        issues_found:
+          type: array
+          items:
+            type: string
+          example: ["Missing data points: 2%", "Outliers detected: 5"]
+
+    ProcessingLog:
+      type: object
+      properties:
+        log_id:
+          type: string
+          example: "log_123456"
+        operation:
+          type: string
+          example: "missing_value_handling"
+        input_shape:
+          type: array
+          items:
+            type: integer
+          example: [252, 6]
+        output_shape:
+          type: array
+          items:
+            type: integer
+          example: [252, 6]
+        parameters_used:
+          type: object
+          example: {"method": "forward_fill", "threshold": 0.1}
+        execution_time:
+          type: number
+          example: 0.045
+        rows_affected:
+          type: integer
+          example: 5
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-01T10:30:00Z"
+        success:
+          type: boolean
+          example: true
+
+    PreprocessingRule:
+      type: object
+      required:
+        - rule_id
+        - rule_type
+        - asset_class
+        - parameters
+      properties:
+        rule_id:
+          type: string
+          example: "missing_value_equity_daily"
+        rule_type:
+          type: string
+          enum: [missing_value, outlier, normalization, validation]
+          example: "missing_value"
+        asset_class:
+          type: string
+          example: "equity"
+        parameters:
+          type: object
+          example: {"method": "forward_fill", "threshold": 0.1}
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 10
+          example: 5
+        active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ExecutionStats:
+      type: object
+      properties:
+        total_time:
+          type: number
+          example: 2.45
+        memory_used:
+          type: number
+          example: 256
+        rows_processed:
+          type: integer
+          example: 252
+        columns_processed:
+          type: integer
+          example: 6
+        operations_performed:
+          type: integer
+          example: 3
+
+    QualityMetricsResponse:
+      type: object
+      properties:
+        dataset_id:
+          type: string
+        metrics:
+          $ref: '#/components/schemas/QualityMetrics'
+        timestamp:
+          type: string
+          format: date-time

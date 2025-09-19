@@ -21,6 +21,10 @@ requests>=2.31.0
 # Configuration management
 python-dotenv>=1.0.0
 
+# Web API framework
+fastapi>=0.104.0
+uvicorn>=0.24.0
+
 # Storage formats (REQUIRED - system won't work without these)
 pyarrow>=12.0.0  # Parquet format support
 
@@ -30,6 +34,9 @@ statsmodels>=0.14.0
 
 # Machine learning
 scikit-learn>=1.4.0
+
+# Statistical testing
+hypothesis>=6.90.0
 
 # Portfolio optimization and backtesting
 vectorbt>=0.28.1

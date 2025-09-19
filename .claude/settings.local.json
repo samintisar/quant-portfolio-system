@@ -1,4 +1,9 @@
 {
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+    "ANTHROPIC_AUTH_TOKEN": "4e901381f93043e58b49e6b4cc855adf.pdKvJ0P9vis250BA"
+  },
+  "model": "glm-4.5",
   "permissions": {
     "allow": [
       "mcp__context7",
@@ -7,7 +12,8 @@
       "Bash(tree:*)",
       "Bash(python -m pytest:*)",
       "Bash(python:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(powershell:*)"
     ],
     "deny": [],
     "ask": []

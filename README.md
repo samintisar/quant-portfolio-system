@@ -41,6 +41,13 @@ ingestion.save_results_to_storage(results)
 - **Data Validation**: Comprehensive quality checks
 - **Batch Processing**: Concurrent data fetching
 
+### Data Preprocessing & Quality Control
+- **Data Cleaning**: Missing value handling, outlier detection, time gap management
+- **Data Validation**: Financial logic validation, bounds checking, statistical validation
+- **Data Normalization**: Z-score, Min-Max, Robust scaling with financial specialization
+- **Performance Optimized**: 10M data points in <30 seconds, <4GB memory usage
+- **Quality Reporting**: Automated data quality assessment and reporting
+
 ### Portfolio Optimization
 - **Mean-Variance Optimization**: Modern portfolio theory
 - **Risk Constraints**: Regulatory and position limits
@@ -63,22 +70,44 @@ ingestion.save_results_to_storage(results)
 
 ```
 quant-portfolio-system/
-├── data/                          # Data ingestion & storage
+├── data/                          # Data handling and preprocessing
 │   ├── src/
+│   │   ├── api/                   # REST API interfaces
+│   │   ├── cli/                   # Command-line interfaces
+│   │   ├── config/                # Configuration management
 │   │   ├── feeds/                 # Data ingestion modules
-│   │   └── storage/               # Data storage modules
-│   └── storage/                   # Persistent data storage
+│   │   ├── lib/                   # Core preprocessing libraries
+│   │   │   ├── cleaning.py        # Missing value and outlier handling
+│   │   │   ├── validation.py      # Data integrity validation
+│   │   │   └── normalization.py   # Data scaling and transformation
+│   │   ├── models/                # Data models and entities
+│   │   ├── services/              # Data processing services
+│   │   ├── storage/               # Data storage modules
+│   │   └── preprocessing.py       # Main preprocessing orchestration
+│   ├── storage/                   # Actual data files (created at runtime)
+│   └── tests/                     # Data module tests
 ├── portfolio/                     # Portfolio optimization
 ├── strategies/                    # Trading strategies
-├── scripts/                       # Utility scripts
+├── scripts/                       # Utility and demo scripts
 │   ├── setup_data_environment.py
-│   └── demo_data_ingestion_and_storage.py
+│   ├── data_management.py
+│   ├── automated_data_refresh.py
+│   ├── initialize_historical_data.py
+│   └── run_preprocessing.py
 ├── examples/                      # Usage examples
 │   └── basic_usage.py
 ├── docs/                          # Documentation
-│   ├── requirements.txt
-│   └── data_ingestion_guide.md
-├── tests/                         # Unit tests
+│   ├── requirements.txt           # Single source of truth for dependencies
+│   ├── data_ingestion_guide.md    # Data system documentation
+│   └── cli/                       # CLI documentation
+├── tests/                         # Comprehensive test suite
+│   ├── unit/                      # Unit tests for libraries
+│   ├── statistical/               # Statistical validation tests
+│   ├── performance/               # Performance and memory tests
+│   ├── integration/               # Integration tests
+│   ├── data/                      # Data-specific tests
+│   └── contract/                  # Contract tests
+├── config/                        # Configuration files
 └── output/                        # Analysis outputs
 ```
 
@@ -107,9 +136,45 @@ storage = create_default_storage()
 aapl_data = storage.load_data('AAPL', AssetClass.EQUITY)
 ```
 
+### Data Preprocessing
+```python
+from data.src.preprocessing import PreprocessingOrchestrator
+from data.src.lib import cleaning, validation, normalization
+
+# Create preprocessing orchestrator
+orchestrator = PreprocessingOrchestrator()
+
+# Clean data (handle missing values, outliers)
+cleaned_data = cleaning.remove_outliers(data, method='iqr', threshold=1.5)
+cleaned_data = cleaning.handle_missing_values(cleaned_data, strategy='forward_fill')
+
+# Validate data integrity
+validation_report = validation.validate_financial_data(cleaned_data)
+if not validation_report['is_valid']:
+    print(f"Data validation failed: {validation_report['errors']}")
+
+# Normalize data for analysis
+normalized_data = normalization.z_score_normalization(cleaned_data)
+```
+
+### CLI Tools for Data Processing
+```bash
+# Preprocess data with quality reporting
+python -m data.src.cli.preprocess --input data/raw/ --output data/processed/ --report
+
+# Generate data quality report
+python -m data.src.cli.quality_report --data data/processed/ --output quality_report.json
+
+# Run preprocessing pipeline
+python scripts/run_preprocessing.py --config config/pipeline_config.json
+```
+
 ### Available Scripts
 - `scripts/setup_data_environment.py` - Environment setup
-- `scripts/demo_data_ingestion_and_storage.py` - Complete demonstration
+- `scripts/data_management.py` - Data management utilities
+- `scripts/automated_data_refresh.py` - Automated data refresh
+- `scripts/initialize_historical_data.py` - Historical data initialization
+- `scripts/run_preprocessing.py` - Preprocessing pipeline execution
 - `examples/basic_usage.py` - Basic usage examples
 
 ## 📖 Documentation
@@ -137,6 +202,9 @@ aapl_data = storage.load_data('AAPL', AssetClass.EQUITY)
 - **Max Drawdown**: < 15% under normal conditions
 - **Benchmark Outperformance**: > 200 bps annually vs S&P 500
 - **Data Quality**: > 95% completeness rate
+- **Preprocessing Performance**: 10 million data points in <30 seconds
+- **Memory Efficiency**: <4GB memory usage for large datasets
+- **Real-time Processing**: Sub-second processing for 1K data batches
 
 ## 📈 Getting Help
 

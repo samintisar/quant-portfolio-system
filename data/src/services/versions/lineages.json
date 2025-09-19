@@ -1,0 +1,10 @@
+{
+  "equity_preprocessing_v1": {
+    "dataset_id": "equity_preprocessing_v1",
+    "root_version_id": "f368fe61-37cf-4199-8933-09cbff0cde5a",
+    "versions": {
+      "f368fe61-37cf-4199-8933-09cbff0cde5a": {
+        "version_id": "f368fe61-37cf-4199-8933-09cbff0cde5a",
+        "dataset_id": "equity_preprocessing_v1",
+        "parent_version_id": null,
+        "timestamp": 
