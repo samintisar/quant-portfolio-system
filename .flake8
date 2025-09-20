@@ -1,0 +1,30 @@
+[flake8]
+# Ignore specific errors common in quantitative finance
+ignore =
+    E203,  # whitespace before ':'
+    E501,  # line too long (handled by black)
+    W503,  # line break before binary operator
+    F401,  # imported but unused (common in data science)
+    F841,  # local variable is assigned to but never used
+
+# Max line length (should match black)
+max-line-length = 88
+
+# Exclude files/directories
+exclude =
+    __pycache__,
+    .git,
+    __pycache__,
+    build,
+    dist,
+    *.egg-info,
+    venv,
+    env,
+    .venv,
+    .env,
+    data/storage/*,
+    output/*,
+    temp/*
+
+# Target Python version
+target-version = py311

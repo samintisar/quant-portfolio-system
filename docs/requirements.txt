@@ -31,6 +31,7 @@ pyarrow>=12.0.0  # Parquet format support
 # --- QUANTITATIVE ANALYSIS LIBRARIES ---
 # Statistical modeling
 statsmodels>=0.14.0
+arch>=6.0.0
 
 # Machine learning
 scikit-learn>=1.4.0

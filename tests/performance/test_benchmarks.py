@@ -1,7 +1,10 @@
 """
-Performance benchmarking tests for large datasets.
+Performance benchmarking tests for financial features system.
 
-Tests performance targets: Process 10M data points in <30 seconds, memory usage <4GB
+Tests system performance against targets:
+- Processing: 10M data points in <30 seconds
+- Memory: <4GB usage for large datasets
+- Throughput: Sub-second processing for 1K data batches
 """
 
 import pytest
@@ -11,446 +14,468 @@ import time
 import psutil
 import sys
 import os
-from datetime import datetime, timedelta
+from typing import Dict, List, Tuple
+import warnings
+from unittest.mock import patch
 
 # Add the data src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'src'))
 
-from lib.cleaning import DataCleaner
-from lib.validation import DataValidator
-from lib.normalization import DataNormalizer
+from lib.returns import (
+    calculate_simple_returns,
+    calculate_log_returns,
+    calculate_percentage_returns,
+    calculate_annualized_returns,
+    calculate_sharpe_ratio,
+    calculate_multi_period_returns
+)
+
+from lib.volatility import (
+    calculate_rolling_volatility,
+    calculate_annualized_volatility,
+    calculate_ewma_volatility,
+    calculate_garch11_volatility,
+    calculate_parkinson_volatility,
+    calculate_garman_klass_volatility
+)
+
+from lib.momentum import (
+    calculate_simple_momentum,
+    calculate_rsi,
+    calculate_roc,
+    calculate_stochastic,
+    calculate_macd
+)
+
+from services.feature_service import FeatureService
+from services.validation_service import ValidationService
 
 
-class TestPerformanceBenchmarks:
-    """Performance benchmarking tests for preprocessing operations."""
+class PerformanceBenchmark:
+    """Performance benchmarking utilities."""
 
-    @pytest.fixture
-    def large_dataset(self):
-        """Create large dataset for benchmarking."""
-        np.random.seed(42)
+    @staticmethod
+    def get_memory_usage() -> float:
+        """Get current memory usage in MB."""
+        process = psutil.Process(os.getpid())
+        return process.memory_info().rss / 1024 / 1024
 
-        # Performance targets: 10M data points
-        n_rows = 100000  # 100K rows for testing
-        n_cols = 100  # 100 columns → 10M data points
+    @staticmethod
+    def time_execution(func, *args, **kwargs) -> Tuple[float, any]:
+        """Time function execution and return result."""
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        return end_time - start_time, result
 
-        # Generate synthetic financial data
-        dates = pd.date_range(start='2020-01-01', periods=n_rows, freq='1min')
+    @staticmethod
+    def generate_large_dataset(size: int = 10_000_000,
+                              volatility: float = 0.02) -> pd.DataFrame:
+        """Generate large synthetic price dataset for testing."""
+        np.random.seed(42)  # For reproducible results
 
-        data = {}
-        for i in range(n_cols):
-            if i % 4 == 0:
-                col_name = f'price_{i}'
-                # Price data with lognormal distribution
-                data[col_name] = np.random.lognormal(4.0, 0.2, n_rows)
-            elif i % 4 == 1:
-                col_name = f'volume_{i}'
-                # Volume data with lognormal distribution
-                data[col_name] = np.random.lognormal(15.0, 0.5, n_rows).astype(int)
-            elif i % 4 == 2:
-                col_name = f'indicator_{i}'
-                # Technical indicator data
-                data[col_name] = np.random.normal(0, 1, n_rows)
+        # Generate dates to avoid pandas limitations
+        # Use minute frequency for large datasets to stay within pandas limits
+        if size >= 100000:
+            # Use minute frequency instead of daily for large datasets
+            dates = pd.date_range(start='2010-01-01', periods=size, freq='min')
+        else:
+            dates = pd.date_range(start='2010-01-01', periods=size, freq='D')
+
+        # Generate realistic price series with drift and volatility
+        # Use smaller drift to avoid overflow with large datasets
+        drift = 0.0001 / (size / 1000)  # Scale drift with dataset size
+        returns = np.random.normal(drift, volatility, size)
+        prices = 100 * np.exp(np.minimum(np.cumsum(returns), 100))  # Cap the exponent to avoid overflow
+
+        # Add OHLC data
+        daily_vol = volatility / np.sqrt(252)
+        high = prices * (1 + np.abs(np.random.normal(0, daily_vol, size)))
+        low = prices * (1 - np.abs(np.random.normal(0, daily_vol, size)))
+        open_price = prices * (1 + np.random.normal(0, daily_vol/2, size))
+
+        # Ensure proper OHLC relationships
+        high = np.maximum(high, np.maximum(open_price, prices))
+        low = np.minimum(low, np.minimum(open_price, prices))
+
+        return pd.DataFrame({
+            'open': open_price,
+            'high': high,
+            'low': low,
+            'close': prices,
+            'volume': np.random.lognormal(15, 0.5, size)
+        }, index=dates)
+
+
+class TestReturnsPerformance:
+    """Performance tests for returns calculation library."""
+
+    def setup_method(self):
+        """Set up test data."""
+        self.benchmark = PerformanceBenchmark()
+
+        # Test datasets of different sizes
+        self.small_data = self.benchmark.generate_large_dataset(1_000)
+        self.medium_data = self.benchmark.generate_large_dataset(100_000)
+        self.large_data = self.benchmark.generate_large_dataset(1_000_000)
+        self.huge_data = self.benchmark.generate_large_dataset(10_000_000)
+
+        # Performance targets
+        self.time_target_1k = 1.0  # 1 second for 1K points
+        self.time_target_1m = 10.0  # 10 seconds for 1M points
+        self.time_target_10m = 30.0  # 30 seconds for 10M points
+        self.memory_target = 4096  # 4GB in MB
+
+    def test_simple_returns_performance(self):
+        """Test simple returns calculation performance."""
+        print("\n=== Simple Returns Performance Test ===")
+
+        for name, data in [
+            ("1K", self.small_data),
+            ("100K", self.medium_data),
+            ("1M", self.large_data),
+            ("10M", self.huge_data)
+        ]:
+            initial_memory = self.benchmark.get_memory_usage()
+
+            execution_time, result = self.benchmark.time_execution(
+                calculate_simple_returns, data['close']
+            )
+
+            final_memory = self.benchmark.get_memory_usage()
+            memory_used = final_memory - initial_memory
+
+            print(f"{name} points:")
+            print(f"  Time: {execution_time:.3f}s")
+            print(f"  Memory: {memory_used:.1f}MB")
+            if execution_time > 0:
+                print(f"  Points/sec: {len(data)/execution_time:,.0f}")
             else:
-                col_name = f'metric_{i}'
-                # General metric data
-                data[col_name] = np.random.uniform(0, 100, n_rows)
+                print(f"  Points/sec: {len(data)/0.001:,.0f}")  # Assume 1ms if time is too small
 
-        data['timestamp'] = dates
+            # Assert performance targets
+            if name == "1K":
+                assert execution_time < self.time_target_1k, f"1K processing too slow: {execution_time:.3f}s"
+            elif name == "1M":
+                assert execution_time < self.time_target_1m, f"1M processing too slow: {execution_time:.3f}s"
+            elif name == "10M":
+                assert execution_time < self.time_target_10m, f"10M processing too slow: {execution_time:.3f}s"
+                assert memory_used < self.memory_target, f"Memory usage too high: {memory_used:.1f}MB"
 
-        df = pd.DataFrame(data)
+            # Verify result correctness
+            assert len(result) == len(data), "Result length mismatch"
+            assert result.isna().sum() <= 1, "Too many NaN values in result"
 
-        # Add some data quality issues
-        # Missing values (5% random)
-        missing_mask = np.random.random(df.shape) < 0.05
-        for col in df.columns:
-            if col != 'timestamp':
-                df.loc[missing_mask[:, df.columns.get_loc(col)], col] = np.nan
+    def test_log_returns_performance(self):
+        """Test log returns calculation performance."""
+        print("\n=== Log Returns Performance Test ===")
 
-        # Outliers (1% of data)
-        outlier_mask = np.random.random(df.shape) < 0.01
-        for col in df.columns:
-            if col != 'timestamp' and df[col].dtype in ['float64', 'int64']:
-                df.loc[outlier_mask[:, df.columns.get_loc(col)], col] *= 10
-
-        return df
-
-    @pytest.fixture
-    def preprocessing_components(self):
-        """Set up preprocessing components."""
-        return {
-            'cleaner': DataCleaner(),
-            'validator': DataValidator(),
-            'normalizer': DataNormalizer()
-        }
-
-    def get_memory_usage(self):
-        """Get current memory usage in GB."""
-        process = psutil.Process()
-        return process.memory_info().rss / (1024**3)  # Convert to GB
-
-    def benchmark_cleaning_operations(self, large_dataset, preprocessing_components):
-        """Benchmark data cleaning operations."""
-        cleaner = preprocessing_components['cleaner']
-
-        # Memory before
-        mem_before = self.get_memory_usage()
-
-        # Time cleaning operations
-        start_time = time.time()
-
-        # Missing value handling
-        cleaned = cleaner.handle_missing_values(large_dataset, method='forward_fill')
-
-        # Outlier detection
-        cleaned, outlier_masks = cleaner.detect_outliers(
-            cleaned, method='iqr', action='clip'
+        execution_time, result = self.benchmark.time_execution(
+            calculate_log_returns, self.large_data['close']
         )
 
-        # Duplicate removal
-        cleaned = cleaner.remove_duplicate_rows(cleaned)
+        print(f"1M points - Time: {execution_time:.3f}s")
+        assert execution_time < self.time_target_1m, "Log returns processing too slow"
+        assert len(result) == len(self.large_data), "Result length mismatch"
 
-        end_time = time.time()
-        mem_after = self.get_memory_usage()
+    def test_multi_period_returns_performance(self):
+        """Test multi-period returns calculation performance."""
+        print("\n=== Multi-Period Returns Performance Test ===")
 
-        # Performance metrics
-        execution_time = end_time - start_time
-        memory_used = mem_after - mem_before
-        data_points = large_dataset.shape[0] * large_dataset.shape[1]
+        periods = [1, 5, 21, 63, 252]
 
-        # Performance assertions
-        # Target: <30 seconds for 10M data points (pro-rated for test size)
-        expected_time = 30.0 * (data_points / 10_000_000)
-        assert execution_time < expected_time, f"Cleaning took {execution_time:.2f}s, expected < {expected_time:.2f}s"
-
-        # Memory usage <4GB
-        assert memory_used < 4.0, f"Cleaning used {memory_used:.2f}GB, expected < 4GB"
-
-        return {
-            'execution_time': execution_time,
-            'memory_used': memory_used,
-            'data_points': data_points,
-            'rows_per_second': large_dataset.shape[0] / execution_time
-        }
-
-    def benchmark_validation_operations(self, large_dataset, preprocessing_components):
-        """Benchmark data validation operations."""
-        validator = preprocessing_components['validator']
-
-        mem_before = self.get_memory_usage()
-        start_time = time.time()
-
-        # Comprehensive validation
-        validation_results = validator.run_comprehensive_validation(
-            large_dataset,
-            config={
-                'required_columns': ['timestamp'],
-                'expected_frequency': '1min',
-                'validate_ratios': True,
-                'validate_cross_asset': False
-            }
+        execution_time, results = self.benchmark.time_execution(
+            calculate_multi_period_returns, self.medium_data['close'], periods
         )
 
-        end_time = time.time()
-        mem_after = self.get_memory_usage()
+        print(f"100K points, {len(periods)} periods - Time: {execution_time:.3f}s")
+        assert execution_time < 5.0, "Multi-period returns processing too slow"
+        assert len(results) == len(periods), "Number of results mismatch"
 
-        execution_time = end_time - start_time
-        memory_used = mem_after - mem_before
-        data_points = large_dataset.shape[0] * large_dataset.shape[1]
+    def test_sharpe_ratio_performance(self):
+        """Test Sharpe ratio calculation performance."""
+        print("\n=== Sharpe Ratio Performance Test ===")
+
+        returns = calculate_simple_returns(self.large_data['close'])
+
+        execution_time, sharpe_ratio = self.benchmark.time_execution(
+            calculate_sharpe_ratio, returns
+        )
+
+        print(f"1M returns - Time: {execution_time:.6f}s")
+        assert execution_time < 0.1, "Sharpe ratio calculation too slow"
+        assert isinstance(sharpe_ratio, float), "Sharpe ratio should be a float"
+
+
+class TestVolatilityPerformance:
+    """Performance tests for volatility calculation library."""
+
+    def setup_method(self):
+        """Set up test data."""
+        self.benchmark = PerformanceBenchmark()
+        self.returns_data = self.benchmark.generate_large_dataset(1_000_000)
+        self.returns = calculate_simple_returns(self.returns_data['close'])
+
+    def test_rolling_volatility_performance(self):
+        """Test rolling volatility calculation performance."""
+        print("\n=== Rolling Volatility Performance Test ===")
+
+        windows = [21, 63, 252]
+
+        for window in windows:
+            execution_time, result = self.benchmark.time_execution(
+                calculate_rolling_volatility, self.returns, window=window
+            )
+
+            print(f"Window {window}: {execution_time:.3f}s")
+            assert execution_time < 5.0, f"Rolling volatility with window {window} too slow"
+
+    def test_ewma_volatility_performance(self):
+        """Test EWMA volatility calculation performance."""
+        print("\n=== EWMA Volatility Performance Test ===")
+
+        execution_time, result = self.benchmark.time_execution(
+            calculate_ewma_volatility, self.returns, span=30
+        )
+
+        print(f"EWMA volatility: {execution_time:.3f}s")
+        assert execution_time < 3.0, "EWMA volatility calculation too slow"
+
+    def test_parkinson_volatility_performance(self):
+        """Test Parkinson volatility calculation performance."""
+        print("\n=== Parkinson Volatility Performance Test ===")
+
+        execution_time, result = self.benchmark.time_execution(
+            calculate_parkinson_volatility,
+            self.returns_data['high'],
+            self.returns_data['low'],
+            window=21
+        )
+
+        print(f"Parkinson volatility: {execution_time:.3f}s")
+        assert execution_time < 8.0, "Parkinson volatility calculation too slow"
+
+
+class TestMomentumPerformance:
+    """Performance tests for momentum calculation library."""
+
+    def setup_method(self):
+        """Set up test data."""
+        self.benchmark = PerformanceBenchmark()
+        self.price_data = self.benchmark.generate_large_dataset(500_000)
+
+    def test_rsi_performance(self):
+        """Test RSI calculation performance."""
+        print("\n=== RSI Performance Test ===")
+
+        execution_time, result = self.benchmark.time_execution(
+            calculate_rsi, self.price_data['close'], period=14
+        )
+
+        print(f"RSI calculation: {execution_time:.3f}s")
+        assert execution_time < 15.0, "RSI calculation too slow"
+
+    def test_macd_performance(self):
+        """Test MACD calculation performance."""
+        print("\n=== MACD Performance Test ===")
+
+        execution_time, result = self.benchmark.time_execution(
+            calculate_macd, self.price_data['close']
+        )
+
+        print(f"MACD calculation: {execution_time:.3f}s")
+        assert execution_time < 10.0, "MACD calculation too slow"
+
+    def test_stochastic_performance(self):
+        """Test Stochastic oscillator calculation performance."""
+        print("\n=== Stochastic Performance Test ===")
+
+        execution_time, result = self.benchmark.time_execution(
+            calculate_stochastic,
+            self.price_data['high'],
+            self.price_data['low'],
+            self.price_data['close']
+        )
+
+        print(f"Stochastic calculation: {execution_time:.3f}s")
+        assert execution_time < 12.0, "Stochastic calculation too slow"
+
+
+class TestFeatureServicePerformance:
+    """Performance tests for feature service."""
+
+    def setup_method(self):
+        """Set up test data."""
+        self.benchmark = PerformanceBenchmark()
+        self.feature_service = FeatureService()
+        self.validation_service = ValidationService()
+
+        # Create test dataset
+        self.data = self.benchmark.generate_large_dataset(100_000)
+
+    def test_batch_feature_generation_performance(self):
+        """Test batch feature generation performance."""
+        print("\n=== Batch Feature Generation Performance Test ===")
+
+        initial_memory = self.benchmark.get_memory_usage()
+
+        execution_time, features = self.benchmark.time_execution(
+            self.feature_service.generate_features_batch,
+            self.data,
+            features=['returns', 'volatility', 'momentum']
+        )
+
+        final_memory = self.benchmark.get_memory_usage()
+        memory_used = final_memory - initial_memory
+
+        print(f"Batch feature generation: {execution_time:.3f}s")
+        print(f"Memory used: {memory_used:.1f}MB")
+        print(f"Features generated: {len(features)}")
+
+        assert execution_time < 20.0, "Batch feature generation too slow"
+        assert memory_used < 1000, "Memory usage too high for batch processing"
+
+    def test_real_time_feature_generation_performance(self):
+        """Test real-time feature generation performance."""
+        print("\n=== Real-time Feature Generation Performance Test ===")
+
+        # Test with smaller batch for real-time simulation
+        small_batch = self.data.tail(1000)
+
+        times = []
+        for i in range(100):  # Simulate 100 real-time updates
+            execution_time, _ = self.benchmark.time_execution(
+                self.feature_service.generate_features,
+                small_batch.iloc[i:i+1],
+                features=['returns', 'volatility']
+            )
+            times.append(execution_time)
+
+        avg_time = np.mean(times)
+        max_time = np.max(times)
+
+        print(f"Real-time feature generation:")
+        print(f"  Average time: {avg_time:.6f}s")
+        print(f"  Max time: {max_time:.6f}s")
+        print(f"  Throughput: {1/avg_time:.1f} features/second")
+
+        assert avg_time < 0.01, f"Real-time processing too slow: {avg_time:.6f}s"
+        assert max_time < 0.05, f"Real-time spike too high: {max_time:.6f}s"
+
+
+class TestSystemIntegrationPerformance:
+    """Integration performance tests for the complete system."""
+
+    def setup_method(self):
+        """Set up test data."""
+        self.benchmark = PerformanceBenchmark()
+        self.feature_service = FeatureService()
+        self.validation_service = ValidationService()
+
+        # Large dataset for integration testing
+        self.data = self.benchmark.generate_large_dataset(2_000_000)
+
+    def test_end_to_end_pipeline_performance(self):
+        """Test complete pipeline performance."""
+        print("\n=== End-to-End Pipeline Performance Test ===")
+
+        initial_memory = self.benchmark.get_memory_usage()
+
+        def complete_pipeline():
+            # Step 1: Data validation
+            validated_data = self.validation_service.validate_dataset(self.data)
+
+            # Step 2: Feature generation
+            features = self.feature_service.generate_features_batch(
+                validated_data,
+                features=['returns', 'volatility', 'momentum', 'risk_metrics']
+            )
+
+            # Step 3: Feature validation
+            validated_features = self.validation_service.validate_features(features)
+
+            return validated_features
+
+        execution_time, result = self.benchmark.time_execution(complete_pipeline)
+
+        final_memory = self.benchmark.get_memory_usage()
+        memory_used = final_memory - initial_memory
+
+        print(f"End-to-end pipeline:")
+        print(f"  Total time: {execution_time:.3f}s")
+        print(f"  Memory used: {memory_used:.1f}MB")
+        print(f"  Data points processed: {len(self.data):,}")
+        print(f"  Processing rate: {len(self.data)/execution_time:,.0f} points/second")
 
         # Performance assertions
-        expected_time = 30.0 * (data_points / 10_000_000)
-        assert execution_time < expected_time, f"Validation took {execution_time:.2f}s, expected < {expected_time:.2f}s"
-        assert memory_used < 4.0, f"Validation used {memory_used:.2f}GB, expected < 4GB"
+        assert execution_time < 60.0, f"End-to-end pipeline too slow: {execution_time:.3f}s"
+        assert memory_used < 2048, f"Memory usage too high: {memory_used:.1f}MB"
+        assert len(self.data)/execution_time > 50000, "Processing rate too low"
 
-        return {
-            'execution_time': execution_time,
-            'memory_used': memory_used,
-            'data_points': data_points,
-            'validation_score': validator.get_data_quality_score(validation_results)
-        }
+    def test_concurrent_processing_performance(self):
+        """Test concurrent processing performance."""
+        print("\n=== Concurrent Processing Performance Test ===")
 
-    def benchmark_normalization_operations(self, large_dataset, preprocessing_components):
-        """Benchmark data normalization operations."""
-        normalizer = preprocessing_components['normalizer']
-
-        mem_before = self.get_memory_usage()
-        start_time = time.time()
-
-        # Z-score normalization
-        normalized_zscore, _ = normalizer.normalize_zscore(large_dataset)
-
-        # Min-max normalization
-        normalized_minmax, _ = normalizer.normalize_minmax(large_dataset)
-
-        # Robust normalization
-        normalized_robust, _ = normalizer.normalize_robust(large_dataset)
-
-        end_time = time.time()
-        mem_after = self.get_memory_usage()
-
-        execution_time = end_time - start_time
-        memory_used = mem_after - mem_before
-        data_points = large_dataset.shape[0] * large_dataset.shape[1]
-
-        # Performance assertions
-        expected_time = 30.0 * (data_points / 10_000_000)
-        assert execution_time < expected_time, f"Normalization took {execution_time:.2f}s, expected < {expected_time:.2f}s"
-        assert memory_used < 4.0, f"Normalization used {memory_used:.2f}GB, expected < 4GB"
-
-        return {
-            'execution_time': execution_time,
-            'memory_used': memory_used,
-            'data_points': data_points,
-            'methods_tested': ['zscore', 'minmax', 'robust']
-        }
-
-    def benchmark_full_preprocessing_pipeline(self, large_dataset, preprocessing_components):
-        """Benchmark complete preprocessing pipeline."""
-        cleaner = preprocessing_components['cleaner']
-        validator = preprocessing_components['validator']
-        normalizer = preprocessing_components['normalizer']
-
-        mem_before = self.get_memory_usage()
-        start_time = time.time()
-
-        # Step 1: Cleaning
-        cleaned = cleaner.handle_missing_values(large_dataset, method='forward_fill')
-        cleaned, _ = cleaner.detect_outliers(cleaned, method='iqr', action='clip')
-
-        # Step 2: Validation
-        validation_results = validator.run_comprehensive_validation(cleaned)
-
-        # Step 3: Normalization
-        normalized, _ = normalizer.normalize_zscore(cleaned)
-
-        end_time = time.time()
-        mem_after = self.get_memory_usage()
-
-        execution_time = end_time - start_time
-        memory_used = mem_after - mem_before
-        data_points = large_dataset.shape[0] * large_dataset.shape[1]
-
-        # Performance assertions for full pipeline
-        expected_time = 60.0 * (data_points / 10_000_000)  # Allow more time for full pipeline
-        assert execution_time < expected_time, f"Full pipeline took {execution_time:.2f}s, expected < {expected_time:.2f}s"
-        assert memory_used < 4.0, f"Full pipeline used {memory_used:.2f}GB, expected < 4GB"
-
-        return {
-            'execution_time': execution_time,
-            'memory_used': memory_used,
-            'data_points': data_points,
-            'validation_score': validator.get_data_quality_score(validation_results)
-        }
-
-    def test_scalability_benchmarks(self):
-        """Test scalability with different dataset sizes."""
-        sizes = [1000, 10000, 100000]  # Different row counts
-        results = {}
-
-        for size in sizes:
-            # Create dataset of specific size
-            df = pd.DataFrame({
-                'timestamp': pd.date_range(start='2023-01-01', periods=size, freq='1min'),
-                'price': np.random.lognormal(4.0, 0.2, size),
-                'volume': np.random.lognormal(15.0, 0.5, size).astype(int),
-                'indicator': np.random.normal(0, 1, size)
-            })
-
-            cleaner = DataCleaner()
-
-            start_time = time.time()
-            cleaned = cleaner.handle_missing_values(df, method='forward_fill')
-            execution_time = time.time() - start_time
-
-            results[size] = {
-                'execution_time': execution_time,
-                'rows_per_second': size / execution_time
-            }
-
-        # Test linear scalability (execution time should scale roughly linearly with size)
-        sizes_sorted = sorted(sizes)
-        times = [results[size]['execution_time'] for size in sizes_sorted]
-
-        # Check that larger datasets don't have super-linear time increase
-        for i in range(1, len(times)):
-            size_ratio = sizes_sorted[i] / sizes_sorted[i-1]
-            time_ratio = times[i] / times[i-1]
-
-            # Time increase should be less than size increase squared (indicating good scalability)
-            assert time_ratio < size_ratio ** 2, f"Non-linear scaling detected: size ratio {size_ratio:.1f}, time ratio {time_ratio:.1f}"
-
-    def test_concurrent_processing_benchmark(self, large_dataset):
-        """Test performance of concurrent processing capabilities."""
         import concurrent.futures
         import threading
 
-        cleaner = DataCleaner()
+        def process_chunk(chunk_data, chunk_id):
+            """Process a chunk of data."""
+            features = self.feature_service.generate_features_batch(
+                chunk_data,
+                features=['returns', 'volatility']
+            )
+            return len(features), chunk_id
 
-        # Split dataset for concurrent processing
-        n_chunks = 4
-        chunk_size = len(large_dataset) // n_chunks
-        chunks = [large_dataset.iloc[i*chunk_size:(i+1)*chunk_size] for i in range(n_chunks)]
+        # Split data into chunks
+        chunk_size = 100_000
+        chunks = [self.data.iloc[i:i+chunk_size]
+                 for i in range(0, len(self.data), chunk_size)]
 
-        mem_before = self.get_memory_usage()
+        initial_memory = self.benchmark.get_memory_usage()
         start_time = time.time()
 
         # Process chunks concurrently
-        with concurrent.futures.ThreadPoolExecutor(max_workers=n_chunks) as executor:
-            futures = [executor.submit(cleaner.handle_missing_values, chunk, 'forward_fill') for chunk in chunks]
-            results = concurrent.futures.wait(futures)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            futures = [executor.submit(process_chunk, chunk, i)
+                      for i, chunk in enumerate(chunks)]
+            results = [future.result() for future in concurrent.futures.as_completed(futures)]
 
-        end_time = time.time()
-        mem_after = self.get_memory_usage()
+        execution_time = time.time() - start_time
+        final_memory = self.benchmark.get_memory_usage()
+        memory_used = final_memory - initial_memory
 
-        execution_time = end_time - start_time
-        memory_used = mem_after - mem_before
+        print(f"Concurrent processing:")
+        print(f"  Total time: {execution_time:.3f}s")
+        print(f"  Memory used: {memory_used:.1f}MB")
+        print(f"  Chunks processed: {len(results)}")
+        print(f"  Processing rate: {len(self.data)/execution_time:,.0f} points/second")
 
-        # Concurrent processing should be faster than sequential
-        # Allow some overhead for threading
-        expected_time = 15.0 * (large_dataset.shape[0] * large_dataset.shape[1] / 10_000_000)
-        assert execution_time < expected_time, f"Concurrent processing took {execution_time:.2f}s, expected < {expected_time:.2f}s"
+        assert execution_time < 30.0, f"Concurrent processing too slow: {execution_time:.3f}s"
+        assert len(results) == len(chunks), "Not all chunks were processed"
 
-        return {
-            'execution_time': execution_time,
-            'memory_used': memory_used,
-            'chunks_processed': n_chunks
-        }
 
-    def test_memory_efficiency_benchmark(self):
-        """Test memory efficiency with large datasets."""
-        # Test memory usage grows linearly with data size
-        sizes = [10000, 50000, 100000]
-        memory_usage = {}
+if __name__ == "__main__":
+    # Run performance benchmarks
+    print("Starting Financial Features Performance Benchmarks")
+    print("=" * 60)
 
-        cleaner = DataCleaner()
+    # Run specific test classes
+    test_returns = TestReturnsPerformance()
+    test_returns.setup_method()
+    test_returns.test_simple_returns_performance()
 
-        for size in sizes:
-            df = pd.DataFrame({
-                'timestamp': pd.date_range(start='2023-01-01', periods=size, freq='1min'),
-                'price': np.random.lognormal(4.0, 0.2, size),
-                'volume': np.random.lognormal(15.0, 0.5, size).astype(int)
-            })
+    test_volatility = TestVolatilityPerformance()
+    test_volatility.setup_method()
+    test_volatility.test_rolling_volatility_performance()
 
-            # Force garbage collection
-            import gc
-            gc.collect()
+    test_momentum = TestMomentumPerformance()
+    test_momentum.setup_method()
+    test_momentum.test_rsi_performance()
 
-            mem_before = self.get_memory_usage()
+    test_integration = TestSystemIntegrationPerformance()
+    test_integration.setup_method()
+    test_integration.test_end_to_end_pipeline_performance()
 
-            # Perform operation
-            cleaned = cleaner.handle_missing_values(df, method='forward_fill')
-
-            mem_after = self.get_memory_usage()
-            memory_usage[size] = mem_after - mem_before
-
-        # Check linear memory growth
-        sizes_sorted = sorted(sizes)
-        memory_values = [memory_usage[size] for size in sizes_sorted]
-
-        for i in range(1, len(memory_values)):
-            size_ratio = sizes_sorted[i] / sizes_sorted[i-1]
-            memory_ratio = memory_values[i] / memory_values[i-1]
-
-            # Memory usage should grow linearly with data size
-            assert memory_ratio < size_ratio * 1.5, f"Non-linear memory growth: size ratio {size_ratio:.1f}, memory ratio {memory_ratio:.1f}"
-
-    def test_real_time_processing_benchmark(self):
-        """Test real-time processing performance."""
-        # Simulate real-time data stream
-        batch_size = 1000
-        n_batches = 100
-        total_points = batch_size * n_batches
-
-        cleaner = DataCleaner()
-        processing_times = []
-
-        for batch in range(n_batches):
-            # Generate batch
-            hour = batch % 24  # Ensure hour is always 0-23
-            day = batch // 24   # Increment day when hour wraps around
-            batch_data = pd.DataFrame({
-                'timestamp': pd.date_range(start=f'2023-01-{day+1:02d} {hour:02d}:00:00', periods=batch_size, freq='1s'),
-                'price': np.random.lognormal(4.0, 0.1, batch_size),
-                'volume': np.random.lognormal(15.0, 0.3, batch_size).astype(int)
-            })
-
-            # Process batch
-            start_time = time.time()
-            cleaned = cleaner.handle_missing_values(batch_data, method='forward_fill')
-            processing_time = time.time() - start_time
-
-            processing_times.append(processing_time)
-
-            # Real-time constraint: each batch should process faster than it arrives
-            assert processing_time < 1.0, f"Batch {batch} took {processing_time:.3f}s, should be < 1s for real-time"
-
-        # Check overall performance
-        avg_processing_time = np.mean(processing_times)
-        max_processing_time = np.max(processing_times)
-
-        assert avg_processing_time < 0.5, f"Average processing time {avg_processing_time:.3f}s too slow for real-time"
-        assert max_processing_time < 1.0, f"Max processing time {max_processing_time:.3f}s too slow for real-time"
-
-        return {
-            'avg_processing_time': avg_processing_time,
-            'max_processing_time': max_processing_time,
-            'total_points': total_points,
-            'throughput': total_points / sum(processing_times)
-        }
-
-    def test_comprehensive_performance_report(self, large_dataset, preprocessing_components):
-        """Generate comprehensive performance report."""
-        # Run all benchmarks
-        cleaning_results = self.benchmark_cleaning_operations(large_dataset, preprocessing_components)
-        validation_results = self.benchmark_validation_operations(large_dataset, preprocessing_components)
-        normalization_results = self.benchmark_normalization_operations(large_dataset, preprocessing_components)
-        pipeline_results = self.benchmark_full_preprocessing_pipeline(large_dataset, preprocessing_components)
-
-        # Generate performance report
-        report = {
-            'dataset_info': {
-                'rows': large_dataset.shape[0],
-                'columns': large_dataset.shape[1],
-                'total_data_points': large_dataset.shape[0] * large_dataset.shape[1],
-                'memory_size_mb': large_dataset.memory_usage(deep=True).sum() / 1024**2
-            },
-            'performance_targets': {
-                'max_execution_time_seconds': 30,
-                'max_memory_usage_gb': 4.0,
-                'min_rows_per_second': 333333  # 10M points / 30 seconds / 100 columns
-            },
-            'benchmark_results': {
-                'cleaning': cleaning_results,
-                'validation': validation_results,
-                'normalization': normalization_results,
-                'full_pipeline': pipeline_results
-            },
-            'performance_summary': {
-                'all_targets_met': (
-                    cleaning_results['execution_time'] < 30 and
-                    validation_results['execution_time'] < 30 and
-                    normalization_results['execution_time'] < 30 and
-                    pipeline_results['execution_time'] < 60 and
-                    max(cleaning_results['memory_used'],
-                        validation_results['memory_used'],
-                        normalization_results['memory_used'],
-                        pipeline_results['memory_used']) < 4.0
-                ),
-                'fastest_operation': min([
-                    cleaning_results['execution_time'],
-                    validation_results['execution_time'],
-                    normalization_results['execution_time']
-                ]),
-                'slowest_operation': max([
-                    cleaning_results['execution_time'],
-                    validation_results['execution_time'],
-                    normalization_results['execution_time'],
-                    pipeline_results['execution_time']
-                ])
-            }
-        }
-
-        # Assert overall performance targets are met
-        assert report['performance_summary']['all_targets_met'], "Performance targets not met"
-
-        return report
+    print("\n" + "=" * 60)
+    print("All performance benchmarks completed successfully!")
