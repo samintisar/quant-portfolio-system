@@ -69,10 +69,28 @@ mypy>=1.5.0
 # tables>=3.8.0  # For HDF5 support
 
 # Time series analysis
-# pmdarima>=2.0.0
+pmdarima>=2.0.0
 
-# Financial calculations
+# Financial calculations (requires compilation - skip on Windows)
 # talib>=0.4.0
+
+# --- ENHANCED FORECASTING DEPENDENCIES ---
+# Hidden Markov Models
+hmmlearn>=0.3.0
+
+# Bayesian networks and probabilistic graphical models
+pgmpy>=0.1.26
+
+# Machine learning baselines
+xgboost>=2.0.0
+
+# Deep learning (optional - uncomment as needed)
+# tensorflow>=2.15.0
+# torch>=2.1.0
+# torchvision>=0.16.0
+
+# Advanced statistical testing
+scipy>=1.11.0  # Already listed but critical for forecasting
 
 # Documentation generation
 # sphinx>=7.0.0
