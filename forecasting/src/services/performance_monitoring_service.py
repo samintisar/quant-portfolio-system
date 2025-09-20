@@ -269,8 +269,34 @@ class ResourceMonitor:
     def _get_gpu_usage(self) -> Optional[float]:
         """Get GPU usage if available."""
         try:
-            # Try to get GPU usage (nvidia-ml-py or similar)
-            # For now, return None
+            # Try PyTorch GPU monitoring
+            import torch
+            if torch.cuda.is_available():
+                return float(torch.cuda.utilization())
+
+            # Try NVIDIA ML Python library
+            try:
+                import nvidia_ml_py3 as nvml
+                nvml.nvmlInit()
+                handle = nvml.nvmlDeviceGetHandleByIndex(0)
+                utilization = nvml.nvmlDeviceGetUtilizationRates(handle)
+                nvml.nvmlShutdown()
+                return float(utilization.gpu)
+            except:
+                pass
+
+            # Try RAPIDS/cuML
+            try:
+                import cupy as cp
+                if cp.cuda.is_available():
+                    with cp.cuda.Device(0):
+                        mem_info = cp.cuda.runtime.memGetInfo()
+                        total_mem = mem_info[1]
+                        used_mem = mem_info[1] - mem_info[0]
+                        return float((used_mem / total_mem) * 100)
+            except:
+                pass
+
             return None
         except:
             return None
