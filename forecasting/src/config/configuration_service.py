@@ -96,6 +96,12 @@ class MLConfiguration(ModelConfiguration):
     epochs: int = 100
     dropout_rate: float = 0.2
     regularization: float = 0.01
+    # GPU-specific settings
+    use_gpu: bool = True
+    mixed_precision: bool = True
+    gradient_checkpointing: bool = True
+    torch_compile: bool = True
+    gradient_accumulation_steps: int = 2
 
 
 class ConfigurationValidator:

@@ -67,7 +67,7 @@ class TestMomentumCalculation:
             result = calculate_simple_momentum(sample_price_data, period=10)
 
             # Check that result has correct length
-            expected_length = len(sample_price_data) - 10 + 1
+            expected_length = len(sample_price_data) - 10  # diff() removes 'period' values
             assert len(result) == expected_length
 
             # Check that result is a pandas Series
@@ -76,7 +76,7 @@ class TestMomentumCalculation:
             # Test with specific values
             prices = pd.Series([100, 102, 104, 106, 108, 110])
             momentum = calculate_simple_momentum(prices, period=3)
-            expected_values = [6.0, 8.0]  # (106-100), (108-102)
+            expected_values = [6.0, 6.0, 6.0]  # (106-100), (108-102), (110-104)
             np.testing.assert_allclose(momentum.values, expected_values, rtol=1e-10)
 
         except (NameError, AttributeError):
@@ -197,7 +197,7 @@ class TestMomentumCalculation:
             # Test with specific values
             prices = pd.Series([100, 102, 104, 106, 108, 110])
             roc = calculate_roc(prices, period=3)
-            expected_values = [6.0, 7.84313725]  # ((106-100)/100)*100, ((108-102)/102)*100
+            expected_values = [6.0, 5.88235294, 5.76923077]  # ((106-100)/100)*100, ((108-102)/102)*100, ((110-104)/104)*100
             np.testing.assert_allclose(roc.values, expected_values, rtol=1e-8)
 
         except (NameError, AttributeError):

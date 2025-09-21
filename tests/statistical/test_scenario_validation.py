@@ -20,8 +20,8 @@ import networkx as nx
 import time
 
 # Import forecasting models (will be implemented later)
-# from src.forecasting.models.scenario_model import BayesianScenarioModel, EconomicScenario, ScenarioImpact
-# from src.forecasting.models.scenario import EconomicScenario, ScenarioImpact
+# from forecasting.src.models.scenario_model import BayesianScenarioModel, EconomicScenario, ScenarioImpact
+# from forecasting.src.models.scenario import EconomicScenario, ScenarioImpact
 
 
 class TestScenarioValidation:
@@ -120,15 +120,15 @@ class TestScenarioValidation:
     def test_bayesian_network_import_error(self):
         """Test: Bayesian network models should not exist yet (will fail initially)"""
         with pytest.raises(ImportError):
-            from src.forecasting.models.scenario_model import BayesianScenarioModel
+            from forecasting.src.models.scenario_model import BayesianScenarioModel
 
         with pytest.raises(ImportError):
-            from src.forecasting.models.scenario_model import EconomicScenario
+            from forecasting.src.models.scenario_model import EconomicScenario
 
     def test_bayesian_network_structure_learning(self, economic_indicators_data):
         """Test: Automatic structure learning for economic relationships"""
         with pytest.raises(NameError):
-            from src.forecasting.models.scenario_model import BayesianScenarioModel
+            from forecasting.src.models.scenario_model import BayesianScenarioModel
 
             model = BayesianScenarioModel(
                 algorithm='hill-climbing',
@@ -159,7 +159,7 @@ class TestScenarioValidation:
     def test_parameter_learning_with_lags(self, economic_indicators_data):
         """Test: Parameter learning with lagged dependencies"""
         with pytest.raises(NameError):
-            from src.forecasting.models.scenario_model import BayesianScenarioModel
+            from forecasting.src.models.scenario_model import BayesianScenarioModel
 
             model = BayesianScenarioModel(
                 max_lag=6,  # Consider up to 6 month lags
@@ -180,7 +180,7 @@ class TestScenarioValidation:
     def test_scenario_generation(self, economic_indicators_data, scenario_definitions):
         """Test: Generate economic scenarios with realistic parameters"""
         with pytest.raises(NameError):
-            from src.forecasting.models.scenario_model import BayesianScenarioModel
+            from forecasting.src.models.scenario_model import BayesianScenarioModel
 
             model = BayesianScenarioModel()
             model.learn_structure(economic_indicators_data)
@@ -203,7 +203,7 @@ class TestScenarioValidation:
     def test_data_lag_impact_analysis(self, economic_indicators_data):
         """Test: Analyze impact of data lags on forecasting accuracy"""
         with pytest.raises(NameError):
-            from src.forecasting.models.scenario_model import LagImpactAnalyzer
+            from forecasting.src.models.scenario_model import LagImpactAnalyzer
 
             analyzer = LagImpactAnalyzer()
 
@@ -228,7 +228,7 @@ class TestScenarioValidation:
     def test_revision_uncertainty_modeling(self, data_revision_data):
         """Test: Model data revision uncertainty and its impact"""
         with pytest.raises(NameError):
-            from src.forecasting.models.scenario_model import RevisionUncertaintyModel
+            from forecasting.src.models.scenario_model import RevisionUncertaintyModel
 
             model = RevisionUncertaintyModel()
 
@@ -253,7 +253,7 @@ class TestScenarioValidation:
     def test_scenario_impact_assessment(self, economic_indicators_data):
         """Test: Assess impact of economic scenarios on financial markets"""
         with pytest.raises(NameError):
-            from src.forecasting.models.scenario_model import ScenarioImpactAssessor
+            from forecasting.src.models.scenario_model import ScenarioImpactAssessor
 
             assessor = ScenarioImpactAssessor()
 
@@ -290,7 +290,7 @@ class TestScenarioValidation:
     def test_probabilistic_scenario_combination(self, economic_indicators_data):
         """Test: Combine multiple scenarios with different probabilities"""
         with pytest.raises(NameError):
-            from src.forecasting.models.scenario_model import ProbabilisticScenarioCombiner
+            from forecasting.src.models.scenario_model import ProbabilisticScenarioCombiner
 
             combiner = ProbabilisticScenarioCombiner()
 
@@ -321,7 +321,7 @@ class TestScenarioValidation:
     def test_real_time_scenario_monitoring(self):
         """Test: Real-time monitoring for scenario triggers"""
         with pytest.raises(NameError):
-            from src.forecasting.models.scenario_model import ScenarioMonitor
+            from forecasting.src.models.scenario_model import ScenarioMonitor
 
             monitor = ScenarioMonitor()
 
@@ -363,7 +363,7 @@ class TestScenarioValidation:
     def test_stress_testing_extreme_scenarios(self):
         """Test: Stress testing with extreme but plausible scenarios"""
         with pytest.raises(NameError):
-            from src.forecasting.models.scenario_model import StressTestScenarioGenerator
+            from forecasting.src.models.scenario_model import StressTestScenarioGenerator
 
             generator = StressTestScenarioGenerator()
 
@@ -391,7 +391,7 @@ class TestScenarioValidation:
     def test_scenario_backtesting(self, economic_indicators_data):
         """Test: Backtest scenario forecasting accuracy"""
         with pytest.raises(NameError):
-            from src.forecasting.models.scenario_model import ScenarioBacktester
+            from forecasting.src.models.scenario_model import ScenarioBacktester
 
             backtester = ScenarioBacktester()
 
@@ -434,7 +434,7 @@ class TestScenarioValidation:
         })
 
         with pytest.raises(NameError):
-            from src.forecasting.models.scenario_model import FastBayesianScenarioModel
+            from forecasting.src.models.scenario_model import FastBayesianScenarioModel
 
             model = FastBayesianScenarioModel(
                 optimization='parallel',

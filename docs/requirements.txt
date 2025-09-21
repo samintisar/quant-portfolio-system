@@ -21,6 +21,9 @@ requests>=2.31.0
 # Configuration management
 python-dotenv>=1.0.0
 
+# Type hints and compatibility
+typing_extensions>=4.12.0
+
 # Web API framework
 fastapi>=0.104.0
 uvicorn>=0.24.0
@@ -84,10 +87,14 @@ pgmpy>=0.1.26
 # Machine learning baselines
 xgboost>=2.0.0
 
-# Deep learning (optional - uncomment as needed)
-# tensorflow>=2.15.0
-# torch>=2.1.0
-# torchvision>=0.16.0
+# Deep learning (GPU-optimized for RTX 3060)
+torch>=2.1.0
+torchvision>=0.16.0
+pytorch-lightning>=2.0.0
+
+# GPU monitoring and optimization
+nvidia-ml-py>=12.535.133  # For GPU monitoring
+pynvml>=11.5.0  # Alternative GPU monitoring
 
 # Advanced statistical testing
 scipy>=1.11.0  # Already listed but critical for forecasting

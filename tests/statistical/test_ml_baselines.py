@@ -22,10 +22,10 @@ import torch
 import torch.nn as nn
 
 # Import ML baseline modules (will be implemented later)
-# from src.forecasting.services.ml_benchmark_service import MLBenchmarkService
-# from src.forecasting.models.xgboost_model import XGBoostForecaster
-# from src.forecasting.models.lstm_model import LSTMForecaster
-# from src.forecasting.models.transformer_model import TransformerForecaster
+# from forecasting.src.services.ml_benchmark_service import MLBenchmarkService
+# from forecasting.src.models.xgboost_model import XGBoostForecaster
+# from forecasting.src.models.lstm_model import LSTMForecaster
+# from forecasting.src.models.transformer_model import TransformerForecaster
 
 
 class TestMLBaselineBenchmarking:
@@ -151,23 +151,23 @@ class TestMLBaselineBenchmarking:
     def test_ml_baseline_import_error(self):
         """Test: ML baseline modules should not exist yet (will fail initially)"""
         with pytest.raises(ImportError):
-            from src.forecasting.services.ml_benchmark_service import MLBenchmarkService
+            from forecasting.src.services.ml_benchmark_service import MLBenchmarkService
 
         with pytest.raises(ImportError):
-            from src.forecasting.models.xgboost_model import XGBoostForecaster
+            from forecasting.src.models.xgboost_model import XGBoostForecaster
 
         with pytest.raises(ImportError):
-            from src.forecasting.models.lstm_model import LSTMForecaster
+            from forecasting.src.models.lstm_model import LSTMForecaster
 
         with pytest.raises(ImportError):
-            from src.forecasting.models.transformer_model import TransformerForecaster
+            from forecasting.src.models.transformer_model import TransformerForecaster
 
     def test_xgboost_forecasting_benchmark(self, financial_time_series_data, ml_model_configs):
         """Test: XGBoost forecasting model benchmarking"""
         data = financial_time_series_data
 
         with pytest.raises(NameError):
-            from src.forecasting.models.xgboost_model import XGBoostForecaster
+            from forecasting.src.models.xgboost_model import XGBoostForecaster
 
             # Configure XGBoost forecaster
             config = ml_model_configs['xgboost']
@@ -206,7 +206,7 @@ class TestMLBaselineBenchmarking:
         data = financial_time_series_data
 
         with pytest.raises(NameError):
-            from src.forecasting.models.lstm_model import LSTMForecaster
+            from forecasting.src.models.lstm_model import LSTMForecaster
 
             # Configure LSTM forecaster
             config = ml_model_configs['lstm']
@@ -255,7 +255,7 @@ class TestMLBaselineBenchmarking:
         data = financial_time_series_data
 
         with pytest.raises(NameError):
-            from src.forecasting.models.transformer_model import TransformerForecaster
+            from forecasting.src.models.transformer_model import TransformerForecaster
 
             # Configure Transformer forecaster
             config = ml_model_configs['transformer']
@@ -302,7 +302,7 @@ class TestMLBaselineBenchmarking:
         data = financial_time_series_data
 
         with pytest.raises(NameError):
-            from src.forecasting.services.ml_benchmark_service import CrossValidationBenchmark
+            from forecasting.src.services.ml_benchmark_service import CrossValidationBenchmark
 
             benchmark = CrossValidationBenchmark(
                 cv_method='time_series_split',
@@ -343,7 +343,7 @@ class TestMLBaselineBenchmarking:
         data = financial_time_series_data
 
         with pytest.raises(NameError):
-            from src.forecasting.services.ml_benchmark_service import ModelComparisonBenchmark
+            from forecasting.src.services.ml_benchmark_service import ModelComparisonBenchmark
 
             benchmark = ModelComparisonBenchmark()
 
@@ -387,7 +387,7 @@ class TestMLBaselineBenchmarking:
         data = financial_time_series_data
 
         with pytest.raises(NameError):
-            from src.forecasting.services.ml_benchmark_service import FeatureImportanceAnalyzer
+            from forecasting.src.services.ml_benchmark_service import FeatureImportanceAnalyzer
 
             analyzer = FeatureImportanceAnalyzer(
                 model_type='xgboost',
@@ -438,7 +438,7 @@ class TestMLBaselineBenchmarking:
         data = financial_time_series_data
 
         with pytest.raises(NameError):
-            from src.forecasting.services.ml_benchmark_service import HyperparameterOptimizer
+            from forecasting.src.services.ml_benchmark_service import HyperparameterOptimizer
 
             # Define hyperparameter spaces
             param_spaces = {
@@ -489,7 +489,7 @@ class TestMLBaselineBenchmarking:
     def test_real_time_prediction_benchmark(self):
         """Test: Real-time prediction performance benchmarking"""
         with pytest.raises(NameError):
-            from src.forecasting.services.ml_benchmark_service import RealTimeBenchmark
+            from forecasting.src.services.ml_benchmark_service import RealTimeBenchmark
 
             benchmark = RealTimeBenchmark(
                 update_frequency=100,  # Update every 100 predictions
@@ -537,7 +537,7 @@ class TestMLBaselineBenchmarking:
         data = financial_time_series_data
 
         with pytest.raises(NameError):
-            from src.forecasting.services.ml_benchmark_service import EnsembleBenchmark
+            from forecasting.src.services.ml_benchmark_service import EnsembleBenchmark
 
             benchmark = EnsembleBenchmark()
 
@@ -597,7 +597,7 @@ class TestMLBaselineBenchmarking:
         })
 
         with pytest.raises(NameError):
-            from src.forecasting.services.ml_benchmark_service import LargeDatasetBenchmark
+            from forecasting.src.services.ml_benchmark_service import LargeDatasetBenchmark
 
             benchmark = LargeDatasetBenchmark(
                 chunk_size=10_000,

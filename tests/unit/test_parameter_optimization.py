@@ -19,8 +19,8 @@ from unittest.mock import Mock, patch
 import time
 
 # Import optimization modules (will be implemented later)
-# from src.forecasting.services.optimization_service import ParameterOptimizer
-# from src.forecasting.models.regime_switching_garch import RegimeSwitchingGARCHOptimizer
+# from forecasting.src.services.optimization_service import ParameterOptimizer
+# from forecasting.src.models.regime_switching_garch import RegimeSwitchingGARCHOptimizer
 
 
 class TestParameterOptimizationValidation:
@@ -109,17 +109,17 @@ class TestParameterOptimizationValidation:
     def test_optimizer_import_error(self):
         """Test: Optimization modules should not exist yet (will fail initially)"""
         with pytest.raises(ImportError):
-            from src.forecasting.services.optimization_service import ParameterOptimizer
+            from forecasting.src.services.optimization_service import ParameterOptimizer
 
         with pytest.raises(ImportError):
-            from src.forecasting.models.regime_switching_garch import RegimeSwitchingGARCHOptimizer
+            from forecasting.src.models.regime_switching_garch import RegimeSwitchingGARCHOptimizer
 
     def test_grid_search_optimization(self, optimization_data, parameter_spaces):
         """Test: Grid search parameter optimization"""
         data = optimization_data
 
         with pytest.raises(NameError):
-            from src.forecasting.services.optimization_service import GridSearchOptimizer
+            from forecasting.src.services.optimization_service import GridSearchOptimizer
 
             # Configure grid search for ARIMA parameters
             param_grid = {
@@ -166,7 +166,7 @@ class TestParameterOptimizationValidation:
         data = optimization_data
 
         with pytest.raises(NameError):
-            from src.forecasting.services.optimization_service import BayesianOptimizer
+            from forecasting.src.services.optimization_service import BayesianOptimizer
 
             # Define search space for GARCH parameters
             search_space = {
@@ -210,7 +210,7 @@ class TestParameterOptimizationValidation:
         data = optimization_data
 
         with pytest.raises(NameError):
-            from src.forecasting.services.optimization_service import RegimeAwareOptimizer
+            from forecasting.src.services.optimization_service import RegimeAwareOptimizer
 
             # Mock regime identification
             regimes = np.where(np.arange(len(data)) < len(data)//2, 'normal', 'high_vol')
@@ -251,7 +251,7 @@ class TestParameterOptimizationValidation:
         data = optimization_data
 
         with pytest.raises(NameError):
-            from src.forecasting.services.optimization_service import ConstrainedOptimizer
+            from forecasting.src.services.optimization_service import ConstrainedOptimizer
 
             # Define financial constraints
             constraints = {
@@ -290,7 +290,7 @@ class TestParameterOptimizationValidation:
         data = optimization_data
 
         with pytest.raises(NameError):
-            from src.forecasting.services.optimization_service import MultiObjectiveOptimizer
+            from forecasting.src.services.optimization_service import MultiObjectiveOptimizer
 
             # Define multiple objectives
             objectives = {
@@ -332,7 +332,7 @@ class TestParameterOptimizationValidation:
         data = optimization_data
 
         with pytest.raises(NameError):
-            from src.forecasting.services.optimization_service import RobustOptimizer
+            from forecasting.src.services.optimization_service import RobustOptimizer
 
             optimizer = RobustOptimizer(
                 model_type='garch',
@@ -365,7 +365,7 @@ class TestParameterOptimizationValidation:
         data = optimization_data
 
         with pytest.raises(NameError):
-            from src.forecasting.services.optimization_service import ParallelOptimizer
+            from forecasting.src.services.optimization_service import ParallelOptimizer
 
             # Define large parameter space
             large_param_space = {
@@ -409,7 +409,7 @@ class TestParameterOptimizationValidation:
         data = optimization_data
 
         with pytest.raises(NameError):
-            from src.forecasting.services.optimization_service import AdaptiveOptimizer
+            from forecasting.src.services.optimization_service import AdaptiveOptimizer
 
             optimizer = AdaptiveOptimizer(
                 model_type='garch',
@@ -445,7 +445,7 @@ class TestParameterOptimizationValidation:
         data = optimization_data
 
         with pytest.raises(NameError):
-            from src.forecasting.services.optimization_service import ModelSelectionOptimizer
+            from forecasting.src.services.optimization_service import ModelSelectionOptimizer
 
             # Define model candidates
             model_candidates = [
@@ -487,7 +487,7 @@ class TestParameterOptimizationValidation:
         large_data = pd.Series(np.random.normal(0, 0.02, 50_000))
 
         with pytest.raises(NameError):
-            from src.forecasting.services.optimization_service import FastParameterOptimizer
+            from forecasting.src.services.optimization_service import FastParameterOptimizer
 
             optimizer = FastParameterOptimizer(
                 model_type='arima',
