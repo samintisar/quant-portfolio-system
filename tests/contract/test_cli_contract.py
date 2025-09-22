@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 
 # These imports will fail initially (TDD approach)
 try:
-    from data.src.cli.feature_commands import FeatureCommands
+    from data.src.cli.feature_commands_simple import FeatureCommands
     from data.src.cli.main import main as cli_main
     from data.src.cli.config_manager import ConfigManager
     from data.src.cli.output_formatter import OutputFormatter

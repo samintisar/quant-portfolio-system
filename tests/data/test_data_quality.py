@@ -275,7 +275,7 @@ class TestDataQualityValidation:
 
     def test_data_quality_scoring(self, clean_financial_data, contaminated_data):
         """Test: Overall data quality scoring"""
-        clean_data, _ = clean_financial_data
+        clean_data = clean_financial_data
         dirty_data, _ = contaminated_data
 
         from data.src.lib.validation import DataValidator

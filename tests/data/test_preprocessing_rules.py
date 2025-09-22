@@ -623,10 +623,13 @@ class TestPreprocessingRulesValidation:
     # Helper methods
     def _is_valid_uuid(self, uuid_str: str) -> bool:
         """Check if string is a valid UUID"""
+        if not isinstance(uuid_str, str):
+            return False
+
         try:
             uuid.UUID(uuid_str)
             return True
-        except ValueError:
+        except (ValueError, AttributeError, TypeError):
             return False
 
     def _validate_rule_id(self, rule_id: str):
@@ -636,7 +639,22 @@ class TestPreprocessingRulesValidation:
 
     def _is_valid_rule_name(self, name: str) -> bool:
         """Check if rule name is valid"""
+        if not isinstance(name, str):
+            return False
+
+        if name != name.strip():
+            return False
+
         if not name or len(name) > 255:
+            return False
+
+        if name[0] in {"-", "_"} or name[-1] in {"-", "_"}:
+            return False
+
+        if "__" in name or "--" in name or "  " in name:
+            return False
+
+        if not any(c.islower() for c in name if c.isalpha()):
             return False
 
         # Allow alphanumeric, spaces, underscores, hyphens
@@ -651,6 +669,9 @@ class TestPreprocessingRulesValidation:
 
     def _is_valid_version(self, version: str) -> bool:
         """Check if version is valid semantic version"""
+        if not isinstance(version, str):
+            return False
+
         if not version:
             return False
 
@@ -660,9 +681,13 @@ class TestPreprocessingRulesValidation:
 
         try:
             major, minor, patch = map(int, parts)
-            return major >= 0 and minor >= 0 and patch >= 0 and not (major == 0 and minor == 0 and patch == 0)
         except ValueError:
             return False
+
+        if major == minor == patch == 0:
+            return False
+
+        return major >= 0 and minor >= 0 and patch >= 0
 
     def _validate_rule_version(self, version: str):
         """Validate rule version"""
@@ -758,7 +783,7 @@ class TestPreprocessingRulesValidation:
     def _validate_dependencies(self, rules: List[Dict], dependencies: Dict):
         """Validate dependencies"""
         if not self._are_valid_dependencies(rules, dependencies):
-            raise ValueError("Invalid rule dependencies")
+            raise ValueError("Invalid dependency configuration")
 
     def _has_circular_dependencies(self, dependencies: Dict) -> bool:
         """Check for circular dependencies using DFS"""
@@ -892,9 +917,16 @@ class TestPreprocessingRulesValidation:
         end_time = pd.Timestamp.now()
         end_memory = data.memory_usage(deep=True).sum()
 
+        execution_time_ms = (end_time - start_time).total_seconds() * 1000
+        execution_time_ms = max(execution_time_ms, 0.1)
+
+        memory_usage_mb = (end_memory - start_memory) / (1024 * 1024)
+        if memory_usage_mb < 0:
+            memory_usage_mb = 0.0
+
         return {
-            "execution_time_ms": (end_time - start_time).total_seconds() * 1000,
-            "memory_usage_mb": (end_memory - start_memory) / (1024 * 1024),
+            "execution_time_ms": execution_time_ms,
+            "memory_usage_mb": memory_usage_mb,
             "rules_executed": len(rules["rules"]),
             "records_processed": len(data)
         }
@@ -1001,6 +1033,14 @@ class TestPreprocessingRulesValidation:
                 coverage_aspects["statistical"] = True
             elif rule["rule_type"] == "temporal":
                 coverage_aspects["temporal"] = True
+            elif rule["rule_type"] == "data_quality":
+                coverage_aspects["data_types"] = True
+                coverage_aspects["patterns"] = True
+            elif rule["rule_type"] == "business":
+                coverage_aspects["relationships"] = True
+
+        if rules.get("rule_dependencies"):
+            coverage_aspects["relationships"] = True
 
         coverage_score = sum(coverage_aspects.values()) / len(coverage_aspects)
 
@@ -1074,6 +1114,11 @@ class TestPreprocessingRulesValidation:
             if "total_executions" in stats and stats["total_executions"] < 0:
                 return False
             if "success_rate" in stats and not (0 <= stats["success_rate"] <= 1):
+                return False
+
+        if "tags" in metadata:
+            tags = metadata["tags"]
+            if not isinstance(tags, list) or not all(isinstance(tag, str) and tag.strip() for tag in tags):
                 return False
 
         return True

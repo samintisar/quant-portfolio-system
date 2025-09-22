@@ -116,21 +116,52 @@ class TestProcessedDataValidation:
         """Generate sample processed datasets for testing"""
         np.random.seed(42)
 
-        # High-quality processed data
-        high_quality_data = pd.DataFrame({
-            'timestamp': pd.date_range('2025-09-18 09:30:00', periods=100, freq='1min'),
-            'symbol': ['AAPL'] * 100,
-            'price_normalized': np.random.uniform(0, 1, 100),
-            'volume_normalized': np.random.uniform(0, 1, 100),
-            'price_standardized': np.random.normal(0, 1, 100),
-            'volume_standardized': np.random.normal(0, 1, 100),
-            'returns': np.random.normal(0, 0.02, 100),
-            'volatility': np.random.uniform(0.1, 0.5, 100),
-            'quality_score': np.random.uniform(0.9, 1.0, 100),
-            'outlier_flag': [False] * 98 + [True] * 2,
-            'missing_imputed': [False] * 99 + [True] * 1
-        })
 
+# High-quality processed data
+        # High-quality processed data
+        timestamps = pd.date_range('2025-09-18 09:30:00', periods=100, freq='1min')
+        price_steps = np.random.normal(0.001, 0.01, 100)
+        base_price = 100 + np.cumsum(price_steps)
+        price_range = base_price.max() - base_price.min()
+        if price_range == 0:
+            price_range = 1.0
+        price_normalized = (base_price - base_price.min()) / price_range
+        
+        volume_base = np.random.lognormal(mean=5.0, sigma=0.25, size=100)
+        volume_range = volume_base.max() - volume_base.min()
+        if volume_range == 0:
+            volume_range = 1.0
+        volume_normalized = (volume_base - volume_base.min()) / volume_range
+        
+        price_standardized = (base_price - base_price.mean()) / base_price.std()
+        volume_standardized = (volume_base - volume_base.mean()) / volume_base.std()
+        
+        returns_series = pd.Series(price_normalized).pct_change().replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        returns = returns_series.clip(-0.5, 0.5).to_numpy()
+        
+        rolling_vol = returns_series.rolling(window=10, min_periods=5).std().fillna(0.0)
+        volatility = np.maximum(rolling_vol.to_numpy(), 0.01)
+        
+        quality_noise = np.random.normal(0, 0.005, 100)
+        quality_score = np.clip(0.96 + quality_noise, 0.9, 1.0)
+        
+        outlier_flags = np.array([False] * 96 + [True] * 4, dtype=bool)
+        missing_flags = np.array([False] * 97 + [True] * 3, dtype=bool)
+        
+        high_quality_data = pd.DataFrame({
+            'timestamp': timestamps,
+            'symbol': ['AAPL'] * 100,
+            'price_normalized': price_normalized,
+            'volume_normalized': volume_normalized,
+            'price_standardized': price_standardized,
+            'volume_standardized': volume_standardized,
+            'returns': returns,
+            'volatility': volatility,
+            'quality_score': quality_score,
+            'outlier_flag': outlier_flags,
+            'missing_imputed': missing_flags,
+        })
+        
         # Low-quality processed data
         low_quality_data = pd.DataFrame({
             'timestamp': pd.date_range('2025-09-18 09:30:00', periods=100, freq='1min'),
@@ -279,8 +310,8 @@ class TestProcessedDataValidation:
         # Test invalid normalized data
         invalid_normalized = data.copy()
         invalid_normalized['price_normalized'] = np.concatenate([
-            np.random.uniform(0, 1, 95),
-            [-0.1, 1.1, 1.5]  # Invalid normalized values
+            np.random.uniform(0, 1, len(invalid_normalized) - 3),
+            [-0.1, 1.1, 1.5]
         ])
 
         validation_result = self._validate_normalized_data(invalid_normalized, processed["schema"])
@@ -311,8 +342,8 @@ class TestProcessedDataValidation:
         # Test invalid standardized data
         invalid_standardized = data.copy()
         invalid_standardized['price_standardized'] = np.concatenate([
-            np.random.normal(0, 1, 90),
-            [10, -10, 15, -15]  # Invalid standardized values
+            np.random.normal(0, 1, len(invalid_standardized) - 4),
+            [10, -10, 15, -15]
         ])
 
         validation_result = self._validate_standardized_data(invalid_standardized)
@@ -608,10 +639,13 @@ class TestProcessedDataValidation:
     # Helper methods
     def _is_valid_uuid(self, uuid_str: str) -> bool:
         """Check if string is a valid UUID"""
+        if not isinstance(uuid_str, str):
+            return False
+
         try:
             uuid.UUID(uuid_str)
             return True
-        except ValueError:
+        except (ValueError, AttributeError, TypeError):
             return False
 
     def _validate_processed_id(self, processed_id: str):
@@ -626,6 +660,10 @@ class TestProcessedDataValidation:
 
     def _is_valid_version(self, version: str) -> bool:
         """Check if version is valid semantic version"""
+        if not isinstance(version, str):
+            return False
+
+        version = version.strip()
         if not version:
             return False
 
@@ -646,27 +684,72 @@ class TestProcessedDataValidation:
 
     def _is_valid_processed_schema(self, schema: Dict) -> bool:
         """Check if processed data schema is valid"""
+        if not isinstance(schema, dict):
+            return False
+
         required_fields = ["columns", "types", "constraints"]
         if not all(field in schema for field in required_fields):
             return False
 
-        # Check for required processed data columns
-        required_columns = ["timestamp", "symbol"]
-        if not all(col in schema["columns"] for col in required_columns):
+        columns = schema.get("columns")
+        types = schema.get("types")
+        constraints = schema.get("constraints")
+
+        if not isinstance(columns, list) or not isinstance(types, dict) or not isinstance(constraints, dict):
             return False
 
-        # Check normalized value constraints
-        normalized_columns = [col for col in schema["columns"] if "normalized" in col]
-        for col in normalized_columns:
-            if col in schema["constraints"]:
-                constraints = schema["constraints"][col]
-                if constraints.get("min", 0) != 0 or constraints.get("max", 1) != 1:
-                    return False
+        core_columns = {
+            "timestamp",
+            "symbol",
+            "price_normalized",
+            "volume_normalized",
+            "price_standardized",
+            "volume_standardized",
+            "returns",
+            "volatility",
+            "quality_score",
+            "outlier_flag",
+            "missing_imputed",
+        }
+        if not core_columns.issubset(set(columns)):
+            return False
 
-        # Check boolean columns
-        boolean_columns = [col for col in schema["columns"] if "flag" in col or col.startswith("is_")]
+        if not all(col in types for col in core_columns):
+            return False
+
+        normalized_columns = [col for col in columns if "normalized" in col]
+        for col in normalized_columns:
+            expected_type = types.get(col)
+            if expected_type not in {"float64", "float32"}:
+                return False
+            col_constraints = constraints.get(col)
+            if not isinstance(col_constraints, dict):
+                return False
+            if col_constraints.get("min") != 0 or col_constraints.get("max") != 1:
+                return False
+
+        quality_constraints = constraints.get("quality_score")
+        if not isinstance(quality_constraints, dict):
+            return False
+        if quality_constraints.get("min") != 0 or quality_constraints.get("max") != 1:
+            return False
+
+        returns_constraints = constraints.get("returns")
+        if not isinstance(returns_constraints, dict):
+            return False
+        if returns_constraints.get("min") is None or returns_constraints.get("max") is None:
+            return False
+        if returns_constraints.get("min") < -1 or returns_constraints.get("max") > 1:
+            return False
+
+        rsi_constraints = constraints.get("rsi")
+        if isinstance(rsi_constraints, dict):
+            if rsi_constraints.get("min") != 0 or rsi_constraints.get("max") != 100:
+                return False
+
+        boolean_columns = ["outlier_flag", "missing_imputed"]
         for col in boolean_columns:
-            if col in schema["types"] and schema["types"][col] != "bool":
+            if types.get(col) != "bool":
                 return False
 
         return True

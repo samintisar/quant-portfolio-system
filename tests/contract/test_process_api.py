@@ -11,6 +11,18 @@ from typing import Dict, Any
 import pandas as pd
 import numpy as np
 
+from data.src.api.preprocessing_api import (
+    validate_process_request_payload,
+    parse_process_data_payload,
+    validate_preprocessing_rules,
+    execute_processing_request,
+    start_async_processing_request,
+    enforce_processing_rate_limit,
+    ensure_request_authenticated,
+    reset_processing_rate_limits,
+    estimate_processing_duration,
+)
+
 
 class TestProcessAPIContract:
     """Test suite for /preprocessing/process endpoint contract compliance"""
@@ -20,24 +32,35 @@ class TestProcessAPIContract:
         Test: Process endpoint rejects requests missing required fields
         Expected: 400 Bad Request with validation error
         """
-        with patch('data.src.api.preprocessing_api.preprocessing_orchestrator') as mock_orchestrator:
-            mock_orchestrator = Mock()
-
-            # Test missing dataset_id
-            request_data = {
-                "preprocessing_config": {
-                    "cleaning": {"missing_value_strategy": "mean"},
-                    "validation": {"min_value": 0, "max_value": 100}
-                }
+        # Missing dataset_id
+        request_data = {
+            "preprocessing_config": {
+                "cleaning": {"missing_value_strategy": "mean"},
+                "validation": {"min_value": 0, "max_value": 100}
             }
+        }
 
-            with pytest.raises(ValueError) as exc_info:
-                # This should fail before API is implemented
-                pass
+        with pytest.raises(ValueError) as exc_info:
+            validate_process_request_payload(request_data)
 
-            # Verify validation error structure
-            assert "dataset_id" in str(exc_info.value)
-            assert "required" in str(exc_info.value).lower()
+        error_message = str(exc_info.value).lower()
+        assert "dataset_id" in error_message
+        assert "required" in error_message
+
+        # Dataset id present but data missing
+        incomplete_payload = {
+            "dataset_id": "test_dataset",
+            "preprocessing_config": {
+                "cleaning": {"missing_value_strategy": "mean"}
+            }
+        }
+
+        with pytest.raises(ValueError) as exc_info:
+            validate_process_request_payload(incomplete_payload)
+
+        error_message = str(exc_info.value).lower()
+        assert "dataset_id" in error_message
+        assert "required" in error_message
 
     def test_process_endpoint_invalid_data_format(self):
         """
@@ -52,11 +75,11 @@ class TestProcessAPIContract:
 
         for invalid_data in invalid_formats:
             with pytest.raises(ValueError) as exc_info:
-                # This should fail before API is implemented
-                pass
+                parse_process_data_payload(invalid_data["data"])
 
-            assert "format" in str(exc_info.value).lower()
-            assert "invalid" in str(exc_info.value).lower()
+            message = str(exc_info.value).lower()
+            assert "format" in message
+            assert "invalid" in message
 
     def test_process_endpoint_success_response_structure(self):
         """
@@ -83,16 +106,14 @@ class TestProcessAPIContract:
         with patch('data.src.api.preprocessing_api.preprocessing_orchestrator') as mock_orchestrator:
             mock_orchestrator.process_data.return_value = expected_response
 
-            # Test the response structure
-            response = expected_response
+            response = execute_processing_request(
+                dataset_id="test_dataset",
+                raw_data=json.dumps({"records": [{"price": 100.0, "volume": 1000}]}),
+                config={"cleaning": {"missing_value_strategy": "mean"}},
+            )
 
-            # Verify required fields
-            assert "processing_id" in response
-            assert "status" in response
-            assert "dataset_id" in response
-            assert "metrics" in response
+            assert response == expected_response
 
-            # Verify metrics structure
             metrics = response["metrics"]
             assert "rows_processed" in metrics
             assert "columns_processed" in metrics
@@ -107,16 +128,17 @@ class TestProcessAPIContract:
         Expected: 500 Internal Server Error with error details
         """
         with patch('data.src.api.preprocessing_api.preprocessing_orchestrator') as mock_orchestrator:
-            # Mock processing error
             mock_orchestrator.process_data.side_effect = Exception("Data processing failed")
 
-            with pytest.raises(Exception) as exc_info:
-                # This should fail before API is implemented
-                pass
+            with pytest.raises(RuntimeError) as exc_info:
+                execute_processing_request(
+                    dataset_id="test_dataset",
+                    raw_data=json.dumps({"records": [{"price": 100.0}]}),
+                    config={"cleaning": {"missing_value_strategy": "mean"}},
+                )
 
-            # Verify error response structure
-            error_message = str(exc_info.value)
-            assert "failed" in error_message.lower()
+            error_message = str(exc_info.value).lower()
+            assert "failed" in error_message
 
     def test_process_endpoint_concurrent_processing(self):
         """
@@ -136,14 +158,14 @@ class TestProcessAPIContract:
         with patch('data.src.api.preprocessing_api.preprocessing_orchestrator') as mock_orchestrator:
             mock_orchestrator.start_async_processing.return_value = async_response
 
-            # Test async response structure
-            response = async_response
+            response = start_async_processing_request(
+                dataset_id="test_dataset",
+                raw_data=json.dumps({"values": [1, 2, 3]}),
+                config={"cleaning": {"missing_value_strategy": "mean"}},
+            )
 
-            # Verify async response fields
-            assert "processing_id" in response
-            assert "status" in response
+            assert response["processing_id"] == async_response["processing_id"]
             assert response["status"] == "processing"
-            assert "estimated_completion_ms" in response
             assert isinstance(response["estimated_completion_ms"], int)
 
     def test_process_endpoint_validation_rules(self):
@@ -158,46 +180,39 @@ class TestProcessAPIContract:
         ]
 
         for invalid_config in invalid_configs:
-            request_data = {
-                "dataset_id": "test",
-                "data": '{"test": "data"}',
-                "preprocessing_config": invalid_config
-            }
-
             with pytest.raises(ValueError) as exc_info:
-                # This should fail before API is implemented
-                pass
+                validate_preprocessing_rules(invalid_config)
 
-            assert "validation" in str(exc_info.value).lower()
-            assert "invalid" in str(exc_info.value).lower()
+            message = str(exc_info.value).lower()
+            assert "validation" in message
+            assert "invalid" in message
 
     def test_process_endpoint_rate_limiting(self):
         """
         Test: Process endpoint enforces rate limiting
         Expected: 429 Too Many Requests for excessive calls
         """
-        # This test will fail until rate limiting is implemented
-        with pytest.raises(Exception) as exc_info:
-            # This should fail before API is implemented
-            pass
+        reset_processing_rate_limits("rate_test")
 
-        # Rate limiting would return 429 status
-        error_message = str(exc_info.value)
-        assert "rate" in error_message.lower() or "limit" in error_message.lower()
+        for _ in range(5):
+            enforce_processing_rate_limit("rate_test")
+
+        with pytest.raises(RuntimeError) as exc_info:
+            enforce_processing_rate_limit("rate_test")
+
+        error_message = str(exc_info.value).lower()
+        assert "rate" in error_message or "limit" in error_message
 
     def test_process_endpoint_authentication(self):
         """
         Test: Process endpoint requires authentication
         Expected: 401 Unauthorized for unauthenticated requests
         """
-        # This test will fail until authentication is implemented
-        with pytest.raises(Exception) as exc_info:
-            # This should fail before API is implemented
-            pass
+        with pytest.raises(PermissionError) as exc_info:
+            ensure_request_authenticated(None)
 
-        # Authentication would return 401 status
-        error_message = str(exc_info.value)
-        assert "auth" in error_message.lower() or "unauthorized" in error_message.lower()
+        error_message = str(exc_info.value).lower()
+        assert "auth" in error_message or "unauthorized" in error_message
 
     @pytest.mark.parametrize("data_size", [100, 1000, 10000])
     def test_process_endpoint_data_size_handling(self, data_size):
@@ -215,16 +230,14 @@ class TestProcessAPIContract:
         }
 
         with patch('data.src.api.preprocessing_api.preprocessing_orchestrator') as mock_orchestrator:
-            # Mock different processing strategies based on size
             if data_size > 1000:
-                expected_processing_time = 5000  # Larger datasets take longer
+                expected_processing_time = 5000
             else:
-                expected_processing_time = 500  # Smaller datasets process faster
+                expected_processing_time = 500
 
             mock_orchestrator.estimate_processing_time.return_value = expected_processing_time
 
-            # Test that processing time estimation works
-            estimated_time = mock_orchestrator.estimate_processing_time(test_data)
+            estimated_time = estimate_processing_duration(test_data)
             assert isinstance(estimated_time, int)
             assert estimated_time > 0
 

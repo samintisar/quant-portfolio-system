@@ -132,7 +132,7 @@ class ConfigurationManager:
         self._templates['returns'] = FinancialFeaturesConfig(
             config_id="returns_template",
             description="Template for returns calculations",
-            features=['simple_returns', 'log_returns', 'annualized_returns'],
+            features=['returns', 'simple_returns', 'log_returns', 'annualized_returns'],
             parameters={
                 'period': 1,
                 'annualization_periods': 252,
@@ -146,7 +146,7 @@ class ConfigurationManager:
         self._templates['volatility'] = FinancialFeaturesConfig(
             config_id="volatility_template",
             description="Template for volatility calculations",
-            features=['rolling_volatility', 'ewma_volatility', 'garch_volatility'],
+            features=['volatility', 'rolling_volatility', 'ewma_volatility', 'garch_volatility'],
             parameters={
                 'window': 21,
                 'span': 30,
@@ -162,7 +162,7 @@ class ConfigurationManager:
         self._templates['momentum'] = FinancialFeaturesConfig(
             config_id="momentum_template",
             description="Template for momentum calculations",
-            features=['rsi', 'macd', 'simple_momentum'],
+            features=['momentum', 'rsi', 'macd', 'simple_momentum'],
             parameters={
                 'rsi_period': 14,
                 'rsi_method': 'wilders',
@@ -294,7 +294,10 @@ class ConfigurationManager:
             results['is_valid'] = False
 
         # Validate features
-        valid_features = ['returns', 'volatility', 'momentum', 'risk_metrics']
+        valid_features = ['returns', 'volatility', 'momentum', 'risk_metrics',
+                          'simple_returns', 'log_returns', 'annualized_returns',
+                          'rolling_volatility', 'ewma_volatility', 'garch_volatility',
+                          'rsi', 'macd', 'simple_momentum']
         for feature in config.features:
             if feature not in valid_features:
                 results['errors'].append(f"Invalid feature: {feature}")
@@ -732,3 +735,4 @@ if __name__ == "__main__":
 
     print("\n" + "=" * 65)
     print("All configuration management tests completed successfully!")
+

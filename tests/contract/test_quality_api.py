@@ -11,6 +11,18 @@ from typing import Dict, Any
 import pandas as pd
 import numpy as np
 
+from data.src.api.preprocessing_api import (
+    validate_quality_dataset_id,
+    fetch_quality_metrics,
+    fetch_historical_quality,
+    validate_quality_thresholds,
+    export_quality_report,
+    calculate_real_time_quality,
+    process_batch_quality,
+    get_cached_quality,
+    estimate_quality_processing_time,
+)
+
 
 class TestQualityAPIContract:
     """Test suite for /preprocessing/quality/{dataset_id} endpoint contract compliance"""
@@ -29,12 +41,11 @@ class TestQualityAPIContract:
 
         for dataset_id in invalid_dataset_ids:
             with pytest.raises(ValueError) as exc_info:
-                # This should fail before API is implemented
-                pass
+                validate_quality_dataset_id(dataset_id)
 
-            error_message = str(exc_info.value)
-            assert "dataset" in error_message.lower()
-            assert "not found" in error_message.lower()
+            error_message = str(exc_info.value).lower()
+            assert "dataset" in error_message
+            assert "not found" in error_message
 
     def test_quality_endpoint_success_response_structure(self):
         """
@@ -96,17 +107,10 @@ class TestQualityAPIContract:
         with patch('data.src.api.preprocessing_api.quality_service') as mock_service:
             mock_service.get_quality_metrics.return_value = expected_response
 
-            # Test response structure
-            response = expected_response
+            response = fetch_quality_metrics("test_dataset")
 
-            # Verify required fields
-            assert "dataset_id" in response
-            assert "quality_assessment" in response
-            assert "overall_quality_score" in response
-            assert "quality_grade" in response
-            assert "recommendations" in response
+            assert response == expected_response
 
-            # Verify quality assessment structure
             qa = response["quality_assessment"]
             assert "completeness" in qa
             assert "accuracy" in qa
@@ -114,7 +118,6 @@ class TestQualityAPIContract:
             assert "timeliness" in qa
             assert "uniqueness" in qa
 
-            # Verify score ranges
             assert 0 <= response["overall_quality_score"] <= 1
             assert response["quality_grade"] in ["A", "B", "C", "D", "F"]
 
@@ -169,15 +172,12 @@ class TestQualityAPIContract:
         with patch('data.src.api.preprocessing_api.quality_service') as mock_service:
             mock_service.get_historical_quality.return_value = expected_historical_response
 
-            # Test historical response structure
-            response = expected_historical_response
+            response = fetch_historical_quality(request_params)
 
-            # Verify historical data structure
             assert "historical_quality" in response
             assert "trend_analysis" in response
             assert len(response["historical_quality"]) > 0
 
-            # Verify trend analysis
             trend = response["trend_analysis"]
             assert "overall_trend" in trend
             assert "trend_strength" in trend
@@ -197,12 +197,11 @@ class TestQualityAPIContract:
 
         for threshold_config in invalid_thresholds:
             with pytest.raises(ValueError) as exc_info:
-                # This should fail before API is implemented
-                pass
+                validate_quality_thresholds(threshold_config)
 
-            error_message = str(exc_info.value)
-            assert "threshold" in error_message.lower()
-            assert "invalid" in error_message.lower()
+            error_message = str(exc_info.value).lower()
+            assert "threshold" in error_message
+            assert "invalid" in error_message
 
     def test_quality_endpoint_export_format(self):
         """
@@ -223,10 +222,8 @@ class TestQualityAPIContract:
 
                 mock_service.export_quality_report.return_value = export_response
 
-                # Test export response structure
-                response = export_response
+                response = export_quality_report("test_dataset", format_type)
 
-                # Verify export response fields
                 assert "format" in response
                 assert "export_url" in response
                 assert "expires_at" in response
@@ -254,10 +251,8 @@ class TestQualityAPIContract:
 
             mock_service.calculate_real_time_quality.return_value = real_time_response
 
-            # Test real-time response structure
-            response = real_time_response
+            response = calculate_real_time_quality("test_dataset")
 
-            # Verify real-time calculation fields
             assert "calculation_status" in response
             assert "processing_time_ms" in response
             assert "records_processed" in response
@@ -297,10 +292,8 @@ class TestQualityAPIContract:
 
             mock_service.process_batch_quality.return_value = batch_response
 
-            # Test batch response structure
-            response = batch_response
+            response = process_batch_quality(batch_request)
 
-            # Verify batch processing fields
             assert "batch_id" in response
             assert "total_datasets" in response
             assert "processed_datasets" in response
@@ -328,10 +321,8 @@ class TestQualityAPIContract:
 
             mock_service.get_cached_quality.return_value = cached_response
 
-            # Test cached response structure
-            response = cached_response
+            response = get_cached_quality("test_dataset")
 
-            # Verify cache-related fields
             assert "cache_status" in response
             assert "cached_at" in response
             assert "cache_ttl_seconds" in response
@@ -345,13 +336,11 @@ class TestQualityAPIContract:
         Expected: Processing time scales linearly with data size
         """
         with patch('data.src.api.preprocessing_api.quality_service') as mock_service:
-            # Mock performance scaling
-            expected_time = max(50, dataset_size * 0.01)  # Base 50ms + 0.01ms per record
+            expected_time = max(50, dataset_size * 0.01)
 
             mock_service.estimate_quality_processing_time.return_value = expected_time
 
-            # Test performance estimation
-            estimated_time = mock_service.estimate_quality_processing_time(dataset_size)
+            estimated_time = estimate_quality_processing_time(dataset_size)
             assert isinstance(estimated_time, (int, float))
             assert estimated_time > 0
 

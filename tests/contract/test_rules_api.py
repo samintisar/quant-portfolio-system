@@ -11,6 +11,20 @@ from typing import Dict, Any, List
 import pandas as pd
 import numpy as np
 
+from data.src.api.preprocessing_api import (
+    validate_rule_definition,
+    create_rule,
+    list_rules,
+    get_rule as fetch_rule,
+    update_rule as apply_rule_update,
+    delete_rule as remove_rule,
+    test_rule as execute_rule_test,
+    perform_bulk_rule_operation,
+    export_rules as export_rules_data,
+    import_rules as import_rules_data,
+    validate_type_specific_rule,
+)
+
 
 class TestRulesAPIContract:
     """Test suite for /preprocessing/rules endpoints contract compliance"""
@@ -30,12 +44,11 @@ class TestRulesAPIContract:
 
         for invalid_rule in invalid_rules:
             with pytest.raises(ValueError) as exc_info:
-                # This should fail before API is implemented
-                pass
+                validate_rule_definition(invalid_rule)
 
-            error_message = str(exc_info.value)
-            assert "validation" in error_message.lower()
-            assert "invalid" in error_message.lower()
+            error_message = str(exc_info.value).lower()
+            assert "validation" in error_message
+            assert "invalid" in error_message
 
     def test_rules_endpoint_create_rule_success(self):
         """
@@ -70,18 +83,9 @@ class TestRulesAPIContract:
         with patch('data.src.api.preprocessing_api.rules_service') as mock_service:
             mock_service.create_rule.return_value = expected_response
 
-            # Test response structure
-            response = expected_response
+            response = create_rule(new_rule)
 
-            # Verify required fields
-            assert "rule_id" in response
-            assert "name" in response
-            assert "type" in response
-            assert "status" in response
-            assert "version" in response
-            assert "created_at" in response
-
-            # Verify rule creation status
+            assert response == expected_response
             assert response["status"] == "created"
             assert response["version"] == 1
             assert response["conditions_count"] == 2
@@ -132,22 +136,9 @@ class TestRulesAPIContract:
         with patch('data.src.api.preprocessing_api.rules_service') as mock_service:
             mock_service.get_rules.return_value = expected_response
 
-            # Test response structure
-            response = expected_response
+            response = list_rules()
 
-            # Verify required fields
-            assert "rules" in response
-            assert "pagination" in response
-            assert "filters" in response
-
-            # Verify pagination structure
-            pagination = response["pagination"]
-            assert "page" in pagination
-            assert "page_size" in pagination
-            assert "total_rules" in pagination
-            assert "total_pages" in pagination
-
-            # Verify rules structure
+            assert response == expected_response
             rules = response["rules"]
             assert len(rules) > 0
             for rule in rules:
@@ -208,17 +199,9 @@ class TestRulesAPIContract:
         with patch('data.src.api.preprocessing_api.rules_service') as mock_service:
             mock_service.get_rule.return_value = expected_response
 
-            # Test response structure
-            response = expected_response
+            response = fetch_rule(rule_id)
 
-            # Verify required fields
-            assert "rule_id" in response
-            assert "conditions" in response
-            assert "actions" in response
-            assert "metadata" in response
-            assert "performance_metrics" in response
-
-            # Verify conditions structure
+            assert response == expected_response
             conditions = response["conditions"]
             for condition in conditions:
                 assert "field" in condition
@@ -263,18 +246,9 @@ class TestRulesAPIContract:
         with patch('data.src.api.preprocessing_api.rules_service') as mock_service:
             mock_service.update_rule.return_value = expected_response
 
-            # Test response structure
-            response = expected_response
+            response = apply_rule_update(rule_id, update_data)
 
-            # Verify update response structure
-            assert "rule_id" in response
-            assert "version" in response
-            assert "status" in response
-            assert "updated_at" in response
-            assert "changes" in response
-            assert "validation_result" in response
-
-            # Verify version increment
+            assert response == expected_response
             assert response["version"] == 3
             assert response["status"] == "updated"
 
@@ -298,17 +272,9 @@ class TestRulesAPIContract:
         with patch('data.src.api.preprocessing_api.rules_service') as mock_service:
             mock_service.delete_rule.return_value = expected_response
 
-            # Test response structure
-            response = expected_response
+            response = remove_rule(rule_id)
 
-            # Verify deletion response structure
-            assert "rule_id" in response
-            assert "status" in response
-            assert "deleted_at" in response
-            assert "deleted_by" in response
-            assert "backup_created" in response
-
-            # Verify deletion status
+            assert response == expected_response
             assert response["status"] == "deleted"
             assert response["backup_created"] is True
 
@@ -367,16 +333,9 @@ class TestRulesAPIContract:
         with patch('data.src.api.preprocessing_api.rules_service') as mock_service:
             mock_service.test_rule.return_value = expected_response
 
-            # Test response structure
-            response = expected_response
+            response = execute_rule_test(rule_id, test_data["dataset_id"], test_data["sample_data"])
 
-            # Verify test response structure
-            assert "rule_id" in response
-            assert "test_status" in response
-            assert "test_results" in response
-            assert "performance_metrics" in response
-
-            # Verify test results
+            assert response == expected_response
             test_results = response["test_results"]
             assert "total_records" in test_results
             assert "passed_records" in test_results
@@ -413,18 +372,9 @@ class TestRulesAPIContract:
         with patch('data.src.api.preprocessing_api.rules_service') as mock_service:
             mock_service.bulk_operation.return_value = expected_response
 
-            # Test response structure
-            response = expected_response
+            response = perform_bulk_rule_operation(bulk_request)
 
-            # Verify bulk operation response
-            assert "operation_id" in response
-            assert "operation" in response
-            assert "total_rules" in response
-            assert "processed_rules" in response
-            assert "successful_rules" in response
-            assert "failed_rules" in response
-
-            # Verify operation metrics
+            assert response == expected_response
             assert response["total_rules"] == 3
             assert response["processed_rules"] == 3
             assert response["successful_rules"] == 3
@@ -466,18 +416,11 @@ class TestRulesAPIContract:
             mock_service.export_rules.return_value = export_response
             mock_service.import_rules.return_value = import_response
 
-            # Test export response
-            export_result = export_response
-            assert "export_id" in export_result
-            assert "rules_exported" in export_result
-            assert "export_url" in export_result
+            export_result = export_rules_data()
+            assert export_result == export_response
 
-            # Test import response
-            import_result = import_response
-            assert "import_id" in import_result
-            assert "rules_imported" in import_result
-            assert "rules_created" in import_result
-            assert "rules_updated" in import_result
+            import_result = import_rules_data(import_request)
+            assert import_result == import_response
 
     @pytest.mark.parametrize("rule_type", ["validation", "cleaning", "transformation", "enrichment"])
     def test_rules_endpoint_type_specific_behavior(self, rule_type):
@@ -492,7 +435,6 @@ class TestRulesAPIContract:
         }
 
         with patch('data.src.api.preprocessing_api.rules_service') as mock_service:
-            # Mock type-specific validation
             validation_response = {
                 "rule_type": rule_type,
                 "validation_passed": True,
@@ -507,10 +449,8 @@ class TestRulesAPIContract:
 
             mock_service.validate_type_specific.return_value = validation_response
 
-            # Test type-specific validation
-            validation = validation_response
-            assert validation["rule_type"] == rule_type
-            assert "type_specific_requirements" in validation
+            validation = validate_type_specific_rule(rule_type, rule_config)
+            assert validation == validation_response
 
 
 if __name__ == "__main__":

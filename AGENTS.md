@@ -16,11 +16,19 @@ Welcome to the quant-portfolio-system project. This guide highlights the essenti
 - Parameterize runs via files in `config/`; prefer copying templates rather than editing committed defaults.
 
 ## Build, Test, and Development Commands
-- `python -m pytest` runs the full suite with coverage reports (`htmlcov/`, `coverage.xml`).
-- `pytest -m "not slow"` is the pre-PR fast path; add `--maxfail=1` for quick triage.
+- `python -m pytest` runs the full suite with coverage reports (`htmlcov/`, `coverage.xml`) using the strict settings from `pyproject.toml`.
+- `pytest -m "not slow" --maxfail=1` is the pre-PR fast path and skips anything tagged `@pytest.mark.slow`.
+- `pytest tests/unit/ -v` and `pytest tests/integration/ -m integration` are the quickest ways to focus on critical suites when debugging.
 - `black . && isort .` enforce formatting; both use an 88-character limit.
 - `flake8` and `mypy .` gate linting and typing; silence warnings by fixing root causes, not by ignoring them.
 - `python scripts/run_preprocessing.py --config config/pipeline_config.json` smoke-tests the end-to-end data flow.
+
+## Test Execution Playbook
+- Install tooling with `pip install -r docs/requirements.txt`, then either `pip install -e .` or export `PYTHONPATH=$PWD` so test imports resolve, and prime storage via `python scripts/setup_data_environment.py` before running any suite.
+- Use `pytest -m "not slow" --maxfail=1` for iterative development; it exercises unit and integration coverage while keeping turnaround tight.
+- Run `python -m pytest` ahead of merges to generate coverage artifacts (`coverage.xml`, `htmlcov/`) and validate strict marker usage.
+- Target performance or statistical checks explicitly with `pytest -m performance` or `pytest -m statistical` to avoid long runtimes during routine edits.
+- Regenerate reports with `python -m pytest --cov-report=html` and review `htmlcov/index.html` locally when investigating coverage regressions.
 
 ## Coding Style & Naming Conventions
 - Use 4-space indentation, typed function signatures, and descriptive module-level docstrings focused on financial context.

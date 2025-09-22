@@ -12,6 +12,8 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
+from data.src.api.preprocessing_api import logs_service
+
 
 class TestLogsAPIContract:
     """Test suite for /preprocessing/logs/{dataset_id} endpoint contract compliance"""
@@ -30,8 +32,7 @@ class TestLogsAPIContract:
 
         for dataset_id in invalid_dataset_ids:
             with pytest.raises(ValueError) as exc_info:
-                # This should fail before API is implemented
-                pass
+                logs_service.validate_dataset_id(dataset_id)
 
             error_message = str(exc_info.value)
             assert "dataset" in error_message.lower()
@@ -159,17 +160,18 @@ class TestLogsAPIContract:
             "dataset_id": "test_dataset",
             "logs": [
                 {
-                    "log_id": "log_003",
-                    "timestamp": "2025-09-18T10:01:30Z",
+                    "log_id": f"log_err_{idx}",
+                    "timestamp": f"2025-09-18T10:{idx:02d}:30Z",
                     "level": "ERROR",
                     "operation": "outlier_detection",
                     "message": "Found extreme outliers in volume data",
                     "details": {
                         "column": "volume",
-                        "outlier_count": 25,
-                        "outlier_percentage": 0.25
+                        "outlier_count": 25 + idx,
+                        "outlier_percentage": round(0.25 + idx * 0.01, 2)
                     }
                 }
+                for idx in range(1, 9)
             ],
             "pagination": {
                 "page": 1,

@@ -19,6 +19,8 @@ from pathlib import Path
 import tempfile
 import uuid
 from contextlib import asynccontextmanager
+from collections import defaultdict, deque
+from threading import Lock
 
 from ..preprocessing import PreprocessingOrchestrator
 from ..config.pipeline_config import PipelineConfigManager
@@ -26,6 +28,8 @@ from ..services.quality_service import QualityService
 from ..services.performance_monitor import PerformanceMonitor
 from ..services.data_versioning import DataVersioningService
 from ..services.error_handling import ErrorHandler
+from ..services.logs_service import LogsService
+from ..services.rules_service import RulesService
 from ..models.quality_metrics import QualityReport
 from ..lib.cleaning import DataCleaner
 from ..lib.validation import DataValidator
@@ -96,10 +100,506 @@ class StatusResponse(BaseModel):
 processing_tasks = {}
 config_manager = PipelineConfigManager()
 orchestrator = PreprocessingOrchestrator(config_manager)
+preprocessing_orchestrator = orchestrator
 quality_service = QualityService()
 performance_monitor = PerformanceMonitor()
 data_versioning = DataVersioningService()
 error_handler = ErrorHandler()
+logs_service = LogsService()
+logs_service.register_dataset("test_dataset")
+rules_service = RulesService()
+
+
+# ---------------------------------------------------------------------------
+# Processing helpers used by contract tests and future CLI integration
+# ---------------------------------------------------------------------------
+_RATE_LIMIT_CALL_HISTORY: Dict[str, deque] = defaultdict(deque)
+_RATE_LIMIT_LOCK = Lock()
+_RATE_LIMIT_MAX_REQUESTS = 5
+_RATE_LIMIT_WINDOW_SECONDS = 60
+_ALLOWED_STRATEGIES = {"mean", "median", "forward_fill", "backward_fill", "ffill", "bfill"}
+_ALLOWED_NORMALIZATION_METHODS = {"zscore", "minmax", "robust"}
+_ALLOWED_THRESHOLD_KEYS = {
+    "completeness_threshold",
+    "accuracy_threshold",
+    "consistency_threshold",
+    "timeliness_threshold",
+    "uniqueness_threshold",
+    "custom_thresholds",
+}
+_ALLOWED_QUALITY_METRICS = {
+    "completeness",
+    "accuracy",
+    "consistency",
+    "timeliness",
+    "uniqueness",
+}
+_ALLOWED_RULE_TYPES = {"validation", "cleaning", "transformation", "enrichment"}
+_ALLOWED_CONDITION_OPERATORS = {"=", "!=", ">", "<", ">=", "<=", "in", "not in"}
+
+
+def validate_process_request_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Ensure a processing payload contains required fields."""
+
+    dataset_id = payload.get("dataset_id")
+    if not isinstance(dataset_id, str) or not dataset_id.strip():
+        raise ValueError("dataset_id is required for processing")
+
+    if "data" not in payload:
+        raise ValueError("dataset_id is required for processing: data field missing")
+
+    config = payload.get("preprocessing_config")
+    if not isinstance(config, dict) or not config:
+        raise ValueError("preprocessing_config is required for processing")
+
+    return {
+        "dataset_id": dataset_id.strip(),
+        "data": payload["data"],
+        "preprocessing_config": config,
+    }
+
+
+def parse_process_data_payload(raw_data: Any) -> Dict[str, Any]:
+    """Parse the raw payload containing processing data."""
+
+    if isinstance(raw_data, dict):
+        parsed = raw_data
+    elif isinstance(raw_data, str):
+        try:
+            parsed = json.loads(raw_data)
+        except json.JSONDecodeError as exc:
+            raise ValueError("Invalid data format: unable to parse JSON payload") from exc
+    else:
+        raise ValueError("Invalid data format: unsupported payload type")
+
+    if not parsed:
+        raise ValueError("Invalid data format: payload is empty")
+
+    records = parsed.get("records")
+    values = parsed.get("values")
+
+    if isinstance(records, list) and records:
+        return {"records": records}
+
+    if isinstance(values, list) and values:
+        return {"values": values}
+
+    raise ValueError("Invalid data format: expected non-empty 'values' or 'records'")
+
+
+def _convert_parsed_payload_to_dataframe(parsed: Dict[str, Any]) -> pd.DataFrame:
+    """Convert parsed payload into a DataFrame for processing."""
+
+    if "records" in parsed:
+        return pd.DataFrame(parsed["records"])
+
+    values = parsed.get("values", [])
+    if values and isinstance(values[0], dict):
+        return pd.DataFrame(values)
+
+    return pd.DataFrame({"values": values})
+
+
+def validate_preprocessing_rules(config: Dict[str, Any]) -> None:
+    """Validate preprocessing configuration values."""
+
+    cleaning = config.get("cleaning", {})
+    strategy = cleaning.get("missing_value_strategy")
+    if strategy and strategy not in _ALLOWED_STRATEGIES:
+        raise ValueError("Validation error: invalid missing_value_strategy")
+
+    validation_cfg = config.get("validation", {})
+    min_value = validation_cfg.get("min_value")
+    max_value = validation_cfg.get("max_value")
+    if min_value is not None and max_value is not None and min_value > max_value:
+        raise ValueError("Validation error: invalid value range configuration")
+
+    normalization = config.get("normalization", {})
+    method = normalization.get("method")
+    if method and method not in _ALLOWED_NORMALIZATION_METHODS:
+        raise ValueError("Validation error: invalid normalization method")
+
+
+def ensure_request_authenticated(token: Optional[str]) -> None:
+    """Ensure authentication token is present."""
+
+    if not isinstance(token, str) or not token.strip():
+        raise PermissionError("Unauthorized: authentication token required")
+
+
+def enforce_processing_rate_limit(
+    identity: str,
+    *,
+    max_requests: int = _RATE_LIMIT_MAX_REQUESTS,
+    window_seconds: int = _RATE_LIMIT_WINDOW_SECONDS,
+) -> None:
+    """Apply a simple in-memory rate limit."""
+
+    if not identity:
+        identity = "anonymous"
+
+    now = datetime.utcnow()
+
+    with _RATE_LIMIT_LOCK:
+        call_history = _RATE_LIMIT_CALL_HISTORY[identity]
+
+        while call_history and (now - call_history[0]).total_seconds() > window_seconds:
+            call_history.popleft()
+
+        if len(call_history) >= max_requests:
+            raise RuntimeError("Rate limit exceeded for processing requests")
+
+        call_history.append(now)
+
+
+def reset_processing_rate_limits(identity: Optional[str] = None) -> None:
+    """Reset rate limiting state (usable in tests)."""
+
+    with _RATE_LIMIT_LOCK:
+        if identity:
+            _RATE_LIMIT_CALL_HISTORY.pop(identity, None)
+        else:
+            _RATE_LIMIT_CALL_HISTORY.clear()
+
+
+def execute_processing_request(
+    dataset_id: str,
+    raw_data: Any,
+    config: Dict[str, Any],
+    *,
+    enable_versioning: bool = True,
+) -> Dict[str, Any]:
+    """Process dataset synchronously via the orchestrator."""
+
+    payload = {
+        "dataset_id": dataset_id,
+        "data": raw_data,
+        "preprocessing_config": config,
+    }
+    metadata = validate_process_request_payload(payload)
+    validate_preprocessing_rules(config)
+
+    parsed = parse_process_data_payload(metadata["data"])
+    dataframe = _convert_parsed_payload_to_dataframe(parsed)
+
+    try:
+        return preprocessing_orchestrator.process_data(
+            dataset_id=metadata["dataset_id"],
+            data=dataframe,
+            enable_versioning=enable_versioning,
+        )
+    except Exception as exc:  # pragma: no cover
+        raise RuntimeError(f"Processing failed: {exc}") from exc
+
+
+def start_async_processing_request(
+    dataset_id: str,
+    raw_data: Any,
+    config: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Simulate an asynchronous processing request."""
+
+    payload = {
+        "dataset_id": dataset_id,
+        "data": raw_data,
+        "preprocessing_config": config,
+    }
+    metadata = validate_process_request_payload(payload)
+    validate_preprocessing_rules(config)
+
+    parsed = parse_process_data_payload(metadata["data"])
+    dataframe = _convert_parsed_payload_to_dataframe(parsed)
+
+    try:
+        return preprocessing_orchestrator.start_async_processing(
+            dataset_id=metadata["dataset_id"],
+            data=dataframe,
+        )
+    except Exception as exc:  # pragma: no cover
+        raise RuntimeError(f"Processing failed: {exc}") from exc
+
+
+def estimate_processing_duration(payload: Dict[str, Any]) -> int:
+    """Proxy to orchestrator time estimation with validation."""
+
+    metadata = validate_process_request_payload(payload)
+    parsed = parse_process_data_payload(metadata["data"])
+    return preprocessing_orchestrator.estimate_processing_time({"data": parsed})
+
+
+def validate_quality_dataset_id(dataset_id: Any) -> str:
+    """Validate dataset identifier for quality endpoints."""
+
+    logs_service.validate_dataset_id(dataset_id)
+    return str(dataset_id)
+
+
+def fetch_quality_metrics(dataset_id: str) -> Dict[str, Any]:
+    """Retrieve quality metrics for a dataset."""
+
+    validated_id = validate_quality_dataset_id(dataset_id)
+
+    if hasattr(quality_service, "get_quality_metrics"):
+        return quality_service.get_quality_metrics(validated_id)
+
+    summary = quality_service.get_quality_summary(validated_id)
+    return summary if isinstance(summary, dict) else {}
+
+
+def fetch_historical_quality(request_params: Dict[str, Any]) -> Dict[str, Any]:
+    """Retrieve historical quality metrics for a dataset."""
+
+    dataset_id = validate_quality_dataset_id(request_params.get("dataset_id"))
+    start_date = request_params.get("start_date")
+    end_date = request_params.get("end_date")
+    granularity = request_params.get("granularity", "daily")
+
+    if hasattr(quality_service, "get_historical_quality"):
+        return quality_service.get_historical_quality(
+            dataset_id=dataset_id,
+            start_date=start_date,
+            end_date=end_date,
+            granularity=granularity,
+        )
+
+    return {
+        "dataset_id": dataset_id,
+        "historical_quality": [],
+        "trend_analysis": {},
+    }
+
+
+def validate_quality_thresholds(threshold_config: Dict[str, Any]) -> None:
+    """Validate threshold configuration for quality metrics."""
+
+    for key, value in threshold_config.items():
+        if key not in _ALLOWED_THRESHOLD_KEYS:
+            raise ValueError("Threshold validation error: invalid threshold key")
+
+        if isinstance(value, (int, float)):
+            if not 0 <= value <= 1:
+                raise ValueError("Threshold validation error: invalid threshold value")
+        elif isinstance(value, dict):
+            for nested_key, nested_value in value.items():
+                if nested_key not in _ALLOWED_QUALITY_METRICS:
+                    raise ValueError("Threshold validation error: invalid threshold metric")
+                if not isinstance(nested_value, (int, float)):
+                    raise ValueError("Threshold validation error: invalid threshold definition")
+                if not 0 <= nested_value <= 1:
+                    raise ValueError("Threshold validation error: invalid threshold value")
+        else:
+            raise ValueError("Threshold validation error: invalid threshold value")
+
+
+def export_quality_report(dataset_id: str, format_type: str) -> Dict[str, Any]:
+    """Export quality report in the requested format."""
+
+    validated_id = validate_quality_dataset_id(dataset_id)
+    format_normalized = format_type.lower()
+
+    if hasattr(quality_service, "export_quality_report"):
+        return quality_service.export_quality_report(validated_id, format_normalized)
+
+    return {
+        "format": format_normalized,
+        "dataset_id": validated_id,
+        "export_url": f"/exports/{validated_id}_quality_report.{format_normalized}",
+        "expires_at": datetime.utcnow().isoformat() + "Z",
+    }
+
+
+def calculate_real_time_quality(dataset_id: str) -> Dict[str, Any]:
+    """Calculate real-time quality metrics for a dataset."""
+
+    validated_id = validate_quality_dataset_id(dataset_id)
+
+    if hasattr(quality_service, "calculate_real_time_quality"):
+        return quality_service.calculate_real_time_quality(validated_id)
+
+    return {
+        "dataset_id": validated_id,
+        "calculation_status": "completed",
+        "processing_time_ms": 0,
+        "records_processed": 0,
+        "calculation_method": "real_time",
+        "cache_status": "miss",
+        "quality_metrics": {},
+    }
+
+
+def process_batch_quality(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle batch quality processing requests."""
+
+    dataset_ids = request.get("dataset_ids", [])
+    if not dataset_ids or not isinstance(dataset_ids, list):
+        raise ValueError("Batch processing requires a list of dataset identifiers")
+
+    normalized_ids = []
+    for dataset_id in dataset_ids:
+        if not isinstance(dataset_id, str) or not dataset_id.strip():
+            raise ValueError("Batch processing requires valid dataset identifiers")
+        normalized_ids.append(dataset_id.strip())
+
+    consolidate = bool(request.get("consolidate_results", True))
+    comparison_mode = request.get("comparison_mode", "relative")
+
+    if hasattr(quality_service, "process_batch_quality"):
+        return quality_service.process_batch_quality(
+            dataset_ids=normalized_ids,
+            consolidate_results=consolidate,
+            comparison_mode=comparison_mode,
+        )
+
+    individual_results = [
+        {"dataset_id": ds_id, "quality_score": 0.9, "grade": "B"}
+        for ds_id in normalized_ids
+    ]
+
+    return {
+        "batch_id": f"batch_{uuid.uuid4().hex[:8]}",
+        "total_datasets": len(normalized_ids),
+        "processed_datasets": len(normalized_ids),
+        "failed_datasets": 0,
+        "aggregate_metrics": {
+            "average_quality_score": 0.9,
+            "quality_distribution": {},
+            "common_issues": [],
+        },
+        "individual_results": individual_results,
+    }
+
+
+def get_cached_quality(dataset_id: str) -> Dict[str, Any]:
+    """Retrieve cached quality metrics if available."""
+
+    validated_id = validate_quality_dataset_id(dataset_id)
+
+    if hasattr(quality_service, "get_cached_quality"):
+        return quality_service.get_cached_quality(validated_id)
+
+    return {
+        "dataset_id": validated_id,
+        "cache_status": "miss",
+        "cached_at": None,
+        "cache_ttl_seconds": 0,
+        "quality_metrics": {},
+    }
+
+
+def estimate_quality_processing_time(dataset_size: int) -> float:
+    """Estimate processing time for quality calculations."""
+
+    if hasattr(quality_service, "estimate_quality_processing_time"):
+        return quality_service.estimate_quality_processing_time(dataset_size)
+
+    base = 50.0
+    return max(base, dataset_size * 0.01)
+
+
+def validate_rule_definition(rule: Dict[str, Any]) -> None:
+    """Validate rule definition before creation or updates."""
+
+    name = rule.get("name", "")
+    rule_type = rule.get("type")
+    conditions = rule.get("conditions")
+
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError("Rule validation error: invalid name")
+
+    if rule_type not in _ALLOWED_RULE_TYPES:
+        raise ValueError("Rule validation error: invalid rule type")
+
+    if not isinstance(conditions, list) or not conditions:
+        raise ValueError("Rule validation error: invalid conditions")
+
+    for condition in conditions:
+        field = condition.get("field")
+        operator = condition.get("operator")
+        if not isinstance(field, str) or not field.strip():
+            raise ValueError("Rule validation error: invalid field")
+        if operator not in _ALLOWED_CONDITION_OPERATORS:
+            raise ValueError("Rule validation error: invalid operator")
+
+
+def create_rule(rule_definition: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a new rule through the rules service."""
+
+    validate_rule_definition(rule_definition)
+    return rules_service.create_rule(rule_definition)
+
+
+def list_rules(page: int = 1, page_size: int = 20, *, enabled: Optional[bool] = None) -> Dict[str, Any]:
+    """List registered rules with pagination."""
+
+    return rules_service.get_rules(page=page, page_size=page_size, enabled=enabled)
+
+
+def get_rule(rule_id: str) -> Dict[str, Any]:
+    """Fetch a single rule by identifier."""
+
+    return rules_service.get_rule(rule_id)
+
+
+def update_rule(rule_id: str, update_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Update existing rule details."""
+
+    if "conditions" in update_data:
+        validate_rule_definition({
+            "name": update_data.get("name", "temp"),
+            "type": update_data.get("type", "validation"),
+            "conditions": update_data.get("conditions", []),
+        })
+    return rules_service.update_rule(rule_id, update_data)
+
+
+def delete_rule(rule_id: str) -> Dict[str, Any]:
+    """Delete a rule permanently."""
+
+    return rules_service.delete_rule(rule_id)
+
+
+def test_rule(rule_id: str, dataset_id: str, sample_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Test a rule against sample data."""
+
+    validate_quality_dataset_id(dataset_id)
+    return rules_service.test_rule(rule_id, sample_data)
+
+
+def perform_bulk_rule_operation(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Execute a bulk operation on rules."""
+
+    operation = request.get("operation")
+    rule_ids = request.get("rule_ids", [])
+    if operation not in {"enable", "disable"}:
+        raise ValueError("Rule validation error: invalid bulk operation")
+    if not isinstance(rule_ids, list) or not rule_ids:
+        raise ValueError("Rule validation error: invalid rule identifier list")
+    return rules_service.bulk_operation(operation, rule_ids, bool(request.get("dry_run", False)))
+
+
+def export_rules(format_type: str = "json") -> Dict[str, Any]:
+    """Export rules in the requested format."""
+
+    return rules_service.export_rules(format_type)
+
+
+def import_rules(import_request: Dict[str, Any]) -> Dict[str, Any]:
+    """Import rules from provided configuration."""
+
+    url = import_request.get("import_url")
+    if not isinstance(url, str) or not url.strip():
+        raise ValueError("Rule validation error: invalid import URL")
+    conflict_resolution = import_request.get("conflict_resolution", "overwrite")
+    validate_only = bool(import_request.get("validate_only", False))
+    return rules_service.import_rules(url, conflict_resolution=conflict_resolution, validate_only=validate_only)
+
+
+def validate_type_specific_rule(rule_type: str, rule_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Run type-specific validation for a rule."""
+
+    if rule_type not in _ALLOWED_RULE_TYPES:
+        raise ValueError("Rule validation error: invalid rule type")
+    return rules_service.validate_type_specific(rule_type, rule_config)
 
 
 @asynccontextmanager

@@ -75,8 +75,8 @@ class TestReturnsCalculation:
         """Test basic logarithmic returns calculation."""
         try:
             result = calculate_log_returns(sample_price_data)
-            expected = np.array([0.04879016, -0.01925953, 0.03813843, 0.02761479])
-            np.testing.assert_allclose(result.values, expected, rtol=1e-6)
+            expected = np.log(sample_price_data.values[1:] / sample_price_data.values[:-1])
+            np.testing.assert_allclose(result.values, expected, rtol=1e-9)
         except (NameError, AttributeError):
             pytest.fail("Function not yet implemented")
 
@@ -158,7 +158,8 @@ class TestReturnsCalculation:
         """Test ReturnSeries input validation."""
         try:
             dates = pd.date_range('2023-01-01', periods=5, freq='D')
-            invalid_returns = pd.Series([0.05, -0.02, 0.03, 0.01], index=dates)
+            valid_returns = pd.Series([0.05, -0.02, 0.03, 0.01], index=dates[1:])
+            invalid_returns = valid_returns.reindex(dates)
 
             with pytest.raises(ValueError):
                 ReturnSeries(
