@@ -49,53 +49,46 @@
 
 ## Phase 3.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
 **CRITICAL: These tests MUST be written and MUST FAIL before ANY implementation**
-- [ ] T004 [P] Statistical validation tests for model outputs in tests/statistical/test_model_validation.py
-- [ ] T005 [P] Data quality tests for input validation in tests/data/test_data_quality.py
-- [ ] T006 [P] Backtesting framework tests in tests/backtesting/test_backtest_engine.py
-- [ ] T007 [P] Risk metrics calculation tests in tests/risk/test_risk_metrics.py
-- [ ] T008 [P] Portfolio optimization constraint tests in tests/optimization/test_constraints.py
+- [ ] T004 [P] Contract test POST /api/users in tests/contract/test_users_post.py
+- [ ] T005 [P] Contract test GET /api/users/{id} in tests/contract/test_users_get.py
+- [ ] T006 [P] Integration test user registration in tests/integration/test_registration.py
+- [ ] T007 [P] Integration test auth flow in tests/integration/test_auth.py
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
-- [ ] T009 [P] Financial data models in src/models/market_data.py
-- [ ] T010 [P] Portfolio model in src/models/portfolio.py
-- [ ] T011 [P] Data ingestion service in src/services/data_service.py
-- [ ] T012 [P] Risk calculation service in src/services/risk_service.py
-- [ ] T013 [P] Portfolio optimization engine in src/optimization/optimizer.py
-- [ ] T014 [P] Backtesting engine in src/backtesting/engine.py
-- [ ] T015 [P] CLI commands for data operations in src/cli/data_commands.py
-- [ ] T016 [P] CLI commands for portfolio operations in src/cli/portfolio_commands.py
+- [ ] T008 [P] User model in src/models/user.py
+- [ ] T009 [P] UserService CRUD in src/services/user_service.py
+- [ ] T010 [P] CLI --create-user in src/cli/user_commands.py
+- [ ] T011 POST /api/users endpoint
+- [ ] T012 GET /api/users/{id} endpoint
+- [ ] T013 Input validation
+- [ ] T014 Error handling and logging
 
 ## Phase 3.4: Integration
-- [ ] T017 Connect data service to Yahoo Finance API
-- [ ] T018 Integrate optimization engine with portfolio model
-- [ ] T019 Connect backtesting engine to historical data
-- [ ] T020 Implement structured logging for model decisions
-- [ ] T021 Add performance monitoring and alerts
+- [ ] T015 Connect UserService to DB
+- [ ] T016 Auth middleware
+- [ ] T017 Request/response logging
+- [ ] T018 CORS and security headers
 
-## Phase 3.5: Polish & Validation
-- [ ] T022 [P] Unit tests for mathematical functions in tests/unit/test_math_utils.py
-- [ ] T023 [P] Performance benchmarking tests (execution time constraints)
-- [ ] T024 [P] Update docs/mathematical_formulations.md
-- [ ] T025 [P] Statistical significance tests for model outputs
-- [ ] T026 Sharpe ratio validation against target (>1.5)
-- [ ] T027 Maximum drawdown validation (<15%)
-- [ ] T028 Run comprehensive backtesting validation
+## Phase 3.5: Polish
+- [ ] T019 [P] Unit tests for validation in tests/unit/test_validation.py
+- [ ] T020 Performance tests (<200ms)
+- [ ] T021 [P] Update docs/api.md
+- [ ] T022 Remove duplication
+- [ ] T023 Run manual-testing.md
 
 ## Dependencies
-- Tests (T004-T008) before implementation (T009-T016)
-- T009, T010 block T011, T012, T013, T014
-- T013, T014 block T018, T019
-- T017, T018, T019 block T020, T021
-- Implementation before validation (T022-T028)
+- Tests (T004-T007) before implementation (T008-T014)
+- T008 blocks T009, T015
+- T016 blocks T018
+- Implementation before polish (T019-T023)
 
 ## Parallel Example
 ```
-# Launch T004-T008 together (all statistical tests):
-Task: "Statistical validation tests for model outputs in tests/statistical/test_model_validation.py"
-Task: "Data quality tests for input validation in tests/data/test_data_quality.py"
-Task: "Backtesting framework tests in tests/backtesting/test_backtest_engine.py"
-Task: "Risk metrics calculation tests in tests/risk/test_risk_metrics.py"
-Task: "Portfolio optimization constraint tests in tests/optimization/test_constraints.py"
+# Launch T004-T007 together:
+Task: "Contract test POST /api/users in tests/contract/test_users_post.py"
+Task: "Contract test GET /api/users/{id} in tests/contract/test_users_get.py"
+Task: "Integration test registration in tests/integration/test_registration.py"
+Task: "Integration test auth in tests/integration/test_auth.py"
 ```
 
 ## Notes
@@ -107,39 +100,28 @@ Task: "Portfolio optimization constraint tests in tests/optimization/test_constr
 ## Task Generation Rules
 *Applied during main() execution*
 
-1. **From Mathematical Models**:
-   - Each model → statistical validation test [P]
-   - Each algorithm → unit test for mathematical correctness [P]
-
-2. **From Data Requirements**:
-   - Each data source → data quality test [P]
+1. **From Contracts**:
+   - Each contract file → contract test task [P]
+   - Each endpoint → implementation task
+   
+2. **From Data Model**:
    - Each entity → model creation task [P]
-   - Data pipelines → integration test tasks
+   - Relationships → service layer tasks
+   
+3. **From User Stories**:
+   - Each story → integration test [P]
+   - Quickstart scenarios → validation tasks
 
-3. **From Risk Requirements**:
-   - Each risk metric → calculation test [P]
-   - Portfolio constraints → constraint validation test [P]
-   - Performance targets → backtesting validation tasks
-
-4. **From Financial Requirements**:
-   - Each optimization strategy → backtest scenario
-   - Performance benchmarks → statistical comparison tests
-
-5. **Ordering**:
-   - Setup → Statistical Tests → Models → Services → Optimization → Integration → Validation
-   - Mathematical dependencies block parallel execution
+4. **Ordering**:
+   - Setup → Tests → Models → Services → Endpoints → Polish
+   - Dependencies block parallel execution
 
 ## Validation Checklist
 *GATE: Checked by main() before returning*
 
-- [ ] All mathematical models have statistical validation tests
-- [ ] All data sources have quality validation tests
-- [ ] All risk metrics have calculation tests
-- [ ] All portfolio constraints have validation tests
-- [ ] All tests come before implementation (TDD enforced)
-- [ ] Statistical tests include significance thresholds
-- [ ] Performance targets clearly defined (Sharpe >1.5, drawdown <15%)
-- [ ] Parallel tasks truly independent (different mathematical domains)
+- [ ] All contracts have corresponding tests
+- [ ] All entities have model tasks
+- [ ] All tests come before implementation
+- [ ] Parallel tasks truly independent
 - [ ] Each task specifies exact file path
 - [ ] No task modifies same file as another [P] task
-- [ ] Backtesting validation covers multiple market regimes

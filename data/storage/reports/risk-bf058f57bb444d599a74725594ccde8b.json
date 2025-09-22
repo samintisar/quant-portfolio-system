@@ -1,0 +1,72 @@
+{
+  "report_id": "risk-bf058f57bb444d599a74725594ccde8b",
+  "generated_at": "2025-09-21T23:12:45.899376",
+  "configuration": {
+    "confidence_levels": [
+      0.95
+    ],
+    "horizons": [
+      1
+    ],
+    "decay_lambda": 0.94,
+    "mc_paths": 4000,
+    "seed": 321,
+    "stress_scenarios": [],
+    "data_frequency": "daily",
+    "reports": [
+      "var"
+    ],
+    "covariance_methods": [
+      "sample"
+    ],
+    "var_methods": [
+      "historical",
+      "parametric",
+      "monte_carlo"
+    ],
+    "cvar_methods": [
+      "historical"
+    ]
+  },
+  "covariance_results": [],
+  "risk_metrics": [
+    {
+      "metric": "var",
+      "confidence": 0.95,
+      "horizon": 1,
+      "value": 0.0003250000000000001,
+      "method": "historical",
+      "sample_size": 6,
+      "metadata": {
+        "horizon_scale": 1.0,
+        "raw_value": 0.0003250000000000001
+      }
+    },
+    {
+      "metric": "var",
+      "confidence": 0.95,
+      "horizon": 1,
+      "value": 0.003454674503052713,
+      "method": "parametric",
+      "sample_size": 6,
+      "metadata": {
+        "horizon_scale": 1.0,
+        "raw_value": 0.003454674503052713
+      }
+    },
+    {
+      "metric": "var",
+      "confidence": 0.95,
+      "horizon": 1,
+      "value": 0.0030583013304397734,
+      "method": "monte_carlo",
+      "sample_size": 4000,
+      "metadata": {
+        "horizon_scale": 1.0,
+        "raw_value": 0.0030583013304397734
+      }
+    }
+  ],
+  "stress_impacts": [],
+  "visualizations": []
+}

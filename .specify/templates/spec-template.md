@@ -40,17 +40,15 @@
 ### For AI Generation
 When creating this spec from a user prompt:
 1. **Mark all ambiguities**: Use [NEEDS CLARIFICATION: specific question] for any assumption you'd need to make
-2. **Don't guess**: If the prompt doesn't specify something (e.g., "optimization strategy" without risk constraints), mark it
-3. **Think like a quant researcher**: Every vague requirement should fail the "testable and unambiguous" checklist item
-4. **Common underspecified areas in quantitative finance**:
-   - Mathematical formulations and model assumptions
-   - Risk constraints and performance targets (Sharpe ratio, max drawdown)
-   - Data requirements (frequency, history, universe coverage)
-   - Backtesting methodology and validation approaches
-   - Statistical significance thresholds and confidence levels
-   - Portfolio construction constraints (concentration, leverage, turnover)
-   - Benchmark definitions and performance attribution
-   - Model governance and version control requirements
+2. **Don't guess**: If the prompt doesn't specify something (e.g., "login system" without auth method), mark it
+3. **Think like a tester**: Every vague requirement should fail the "testable and unambiguous" checklist item
+4. **Common underspecified areas**:
+   - User types and permissions
+   - Data retention/deletion policies  
+   - Performance targets and scale
+   - Error handling behaviors
+   - Integration requirements
+   - Security/compliance needs
 
 ---
 

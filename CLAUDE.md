@@ -55,14 +55,12 @@ You are working on a quantitative trading and portfolio optimization system that
 5. **Document assumptions** clearly in code comments
 
 ## Constitutional Compliance
-This project follows the Quantitative Trading System Constitution (v1.0.0):
-- Library-first architecture with mathematical focus
-- CLI interfaces for reproducible research
-- Test-first development with statistical validation
-- Rigorous data quality and validation
-- Comprehensive risk management and observability
-- Strict versioning for model governance
-- Simplicity with financial soundness
+This project follows the Quant Portfolio System Constitution (v1.1.0):
+- Data fidelity is mandatory: use validated ingestion, preprocessing, and quality reporting before running models.
+- Risk-first governance: document and test VaR/CVaR, drawdown, and constraint compliance prior to portfolio changes.
+- Test-driven statistical validation: write failing tests, run `pytest`, `flake8`, and `mypy` before implementation merges.
+- Reproducible CLI workflows: expose functionality via scripts or CLI entry points with checked-in configuration.
+- Observability and performance discipline: maintain structured logging, metrics, and enforce documented performance budgets.
 
 ## Recent Changes
 <!-- Auto-updated by scripts - keep last 3 entries -->
@@ -146,5 +144,6 @@ quant-portfolio-system/
 - CLI interfaces for batch processing and quality reporting
 
 ---
-*Based on Quantitative Trading Constitution v1.0.0 - See `.specify/memory/constitution.md`*
+*Based on Quant Portfolio System Constitution v1.1.0 - See `.specify/memory/constitution.md`*
 *Updated: 2025-09-18 | Lines: 120*
+

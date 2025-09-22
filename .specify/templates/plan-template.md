@@ -47,50 +47,11 @@
 ## Constitution Check
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-### Library-First Architecture Gate (Article I)
-- [ ] Feature decomposed into ≤3 mathematical libraries?
-- [ ] Each library has clear quantitative purpose (data/modeling/optimization/risk/backtesting)?
-- [ ] Libraries self-contained with minimal dependencies?
-- [ ] Mathematical formulations documented?
-
-### CLI & Reproducibility Gate (Article II)
-- [ ] All models expose CLI interfaces?
-- [ ] JSON configuration support for parameters?
-- [ ] Seed control for reproducible results?
-- [ ] Version-controlled configuration files?
-
-### Test-First Gate (Article III)
-- [ ] Statistical validation tests planned?
-- [ ] Unit tests for mathematical correctness?
-- [ ] Backtesting validation scenarios defined?
-- [ ] Data pipeline integrity tests specified?
-
-### Data Quality Gate (Article IV)
-- [ ] Input validation strategy defined?
-- [ ] Model output bounds checking planned?
-- [ ] Missing value handling strategy specified?
-- [ ] Performance monitoring approach defined?
-
-### Risk Management Gate (Article V)
-- [ ] Risk metrics calculation planned (VaR, drawdown)?
-- [ ] Structured logging for model decisions?
-- [ ] Alert systems for constraint violations?
-- [ ] Performance attribution tracking specified?
-
-### Financial Soundness Gate (Article VII)
-- [ ] Benchmark validation against S&P 500 planned?
-- [ ] Target Sharpe ratio > 1.5 achievable?
-- [ ] Maximum drawdown < 15% constraint enforced?
-- [ ] Starting with basic models before advanced techniques?
-
-### Financial Constraints Compliance
-- [ ] Single name concentration < 5% enforced?
-- [ ] Sector concentration < 20% enforced?
-- [ ] Leverage ratio < 1.5x for long-only strategies?
-- [ ] VaR at 95% confidence < 2% daily portfolio value?
-- [ ] Minimum 10 years historical data available?
-- [ ] Coverage of 500+ liquid instruments planned?
-
+- [ ] Data Fidelity (Principle I): Plan documents ingestion/preprocessing touchpoints, required validation, and storage quality reporting.
+- [ ] Risk Governance (Principle II): Risk metrics, constraints, and review evidence are defined with tests that will fail on breaches.
+- [ ] Test-Driven Validation (Principle III): Planned work sequences tests before implementation and covers statistical assertions.
+- [ ] Reproducible Workflow (Principle IV): CLI entry points, configuration files, and rerunnable commands are specified.
+- [ ] Observability & Performance (Principle V): Logging, metrics, and performance budgets are addressed with validation tasks.
 ## Project Structure
 
 ### Documentation (this feature)
@@ -187,7 +148,8 @@ ios/ or android/
    - Quickstart test = story validation steps
 
 5. **Update agent file incrementally** (O(1) operation):
-   - Run `.specify/scripts/powershell/update-agent-context.ps1 -AgentType claude` for your AI assistant
+   - Run `.specify/scripts/powershell/update-agent-context.ps1 -AgentType codex`
+     **IMPORTANT**: Execute it exactly as specified above. Do not add or remove any arguments.
    - If exists: Add only NEW tech from current plan
    - Preserve manual additions between markers
    - Update recent changes (keep last 3)
@@ -250,4 +212,5 @@ ios/ or android/
 - [ ] Complexity deviations documented
 
 ---
-*Based on Quantitative Trading Constitution v1.0.0 - See `.specify/memory/constitution.md`*
+*Based on Constitution v1.1.0 - See `/memory/constitution.md`*
+

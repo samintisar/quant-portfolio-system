@@ -1,0 +1,38 @@
+﻿{
+  "version": 1,
+  "profiles": {
+    "baseline": {
+      "description": "Daily monitoring profile for VaR/CVaR at 95% confidence over a 1-day horizon.",
+      "confidence_levels": [0.95],
+      "horizons": [1],
+      "decay_lambda": 0.94,
+      "mc_paths": 10000,
+      "seed": 42,
+      "stress_scenarios": ["macro_recession", "inflation_spike"],
+      "data_frequency": "daily",
+      "reports": ["covariance", "var", "cvar", "stress", "visualizations"],
+      "covariance_methods": ["sample", "ledoit_wolf", "ewma"],
+      "var_methods": ["historical", "parametric", "monte_carlo"],
+      "cvar_methods": ["historical", "monte_carlo"]
+    },
+    "regulatory": {
+      "description": "Regulatory-style profile aligning to 99% confidence over a 10-day horizon.",
+      "confidence_levels": [0.99],
+      "horizons": [10],
+      "decay_lambda": 0.97,
+      "mc_paths": 50000,
+      "seed": 1729,
+      "stress_scenarios": ["macro_recession", "liquidity_crunch"],
+      "data_frequency": "daily",
+      "reports": ["covariance", "var", "cvar", "stress", "visualizations"],
+      "covariance_methods": ["ledoit_wolf", "ewma"],
+      "var_methods": ["parametric", "monte_carlo"],
+      "cvar_methods": ["monte_carlo"]
+    }
+  },
+  "defaults": {
+    "profile": "baseline",
+    "reports_path": "data/storage/reports",
+    "logging_config": "config/logging/risk_logging.yaml"
+  }
+}
