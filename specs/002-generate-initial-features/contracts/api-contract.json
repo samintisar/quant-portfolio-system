@@ -1,0 +1,629 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Financial Features API",
+    "description": "API for generating initial financial features (returns, volatility, momentum) from market data",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Quantitative Trading System",
+      "email": "quant-team@example.com"
+    }
+  },
+  "paths": {
+    "/features/generate": {
+      "post": {
+        "summary": "Generate financial features for instruments",
+        "description": "Calculate returns, volatility, and momentum indicators for specified financial instruments",
+        "operationId": "generateFeatures",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeatureGenerationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully generated financial features",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureGenerationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error - insufficient data or numerical issues",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/features/validate": {
+      "post": {
+        "summary": "Validate input data quality",
+        "description": "Check data quality and validate input for feature generation",
+        "operationId": "validateData",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DataValidationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Data validation results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataValidationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/features/config": {
+      "get": {
+        "summary": "Get default configuration",
+        "description": "Retrieve default feature generation parameters",
+        "operationId": "getDefaultConfig",
+        "responses": {
+          "200": {
+            "description": "Default configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureConfig"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/features/{instrument}/history": {
+      "get": {
+        "summary": "Get feature history for instrument",
+        "description": "Retrieve calculated features for a specific instrument",
+        "operationId": "getInstrumentFeatures",
+        "parameters": [
+          {
+            "name": "instrument",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Instrument feature history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstrumentFeatureResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Instrument not found or no features available"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "FeatureGenerationRequest": {
+        "type": "object",
+        "required": ["instruments", "price_data"],
+        "properties": {
+          "instruments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Instrument"
+            },
+            "description": "Array of financial instruments to process"
+          },
+          "price_data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricePoint"
+            },
+            "description": "Time series price data for all instruments"
+          },
+          "config": {
+            "$ref": "#/components/schemas/FeatureConfig",
+            "description": "Optional configuration parameters"
+          }
+        }
+      },
+      "Instrument": {
+        "type": "object",
+        "required": ["symbol"],
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "pattern": "^[A-Z0-9.-]{1,20}$",
+            "description": "Unique instrument identifier"
+          },
+          "name": {
+            "type": "string",
+            "description": "Full name of the instrument"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["STOCK", "ETF", "INDEX", "FUTURES"],
+            "default": "STOCK"
+          },
+          "exchange": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string",
+            "default": "USD"
+          },
+          "sector": {
+            "type": "string"
+          }
+        }
+      },
+      "PricePoint": {
+        "type": "object",
+        "required": ["symbol", "date", "close"],
+        "properties": {
+          "symbol": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "open": {
+            "type": "number",
+            "minimum": 0
+          },
+          "high": {
+            "type": "number",
+            "minimum": 0
+          },
+          "low": {
+            "type": "number",
+            "minimum": 0
+          },
+          "close": {
+            "type": "number",
+            "minimum": 0,
+            "exclusiveMinimum": true
+          },
+          "volume": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "adjusted_close": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      },
+      "FeatureConfig": {
+        "type": "object",
+        "properties": {
+          "return_methods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["ARITHMETIC", "LOGARITHMIC", "PERCENTAGE"]
+            },
+            "default": ["ARITHMETIC", "LOGARITHMIC"]
+          },
+          "volatility_windows": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 5,
+              "maximum": 252
+            },
+            "default": [20, 252]
+          },
+          "momentum_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["SIMPLE_MOMENTUM", "RSI", "ROC"]
+            },
+            "default": ["SIMPLE_MOMENTUM", "RSI"]
+          },
+          "lookback_periods": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 252
+            },
+            "default": [10, 20, 50]
+          },
+          "missing_data_strategy": {
+            "type": "string",
+            "enum": ["FORWARD_FILL", "LINEAR_INTERPOLATION", "DROP"],
+            "default": "FORWARD_FILL"
+          },
+          "outlier_detection": {
+            "type": "object",
+            "properties": {
+              "method": {
+                "type": "string",
+                "enum": ["Z_SCORE", "IQR", "FIXED_BOUNDS"],
+                "default": "Z_SCORE"
+              },
+              "threshold": {
+                "type": "number",
+                "default": 3.0
+              }
+            }
+          }
+        }
+      },
+      "FeatureGenerationResponse": {
+        "type": "object",
+        "properties": {
+          "feature_sets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeatureSet"
+            }
+          },
+          "summary": {
+            "$ref": "#/components/schemas/FeatureSummary"
+          },
+          "quality_report": {
+            "$ref": "#/components/schemas/DataQualityReport"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/GenerationMetadata"
+          }
+        }
+      },
+      "FeatureSet": {
+        "type": "object",
+        "required": ["instrument", "returns", "volatility", "momentum"],
+        "properties": {
+          "instrument": {
+            "$ref": "#/components/schemas/Instrument"
+          },
+          "returns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReturnData"
+            }
+          },
+          "volatility": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VolatilityData"
+            }
+          },
+          "momentum": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MomentumData"
+            }
+          },
+          "data_quality_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      },
+      "ReturnData": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "return_type": {
+            "type": "string",
+            "enum": ["ARITHMETIC", "LOGARITHMIC", "PERCENTAGE"]
+          },
+          "return_value": {
+            "type": "number"
+          },
+          "period": {
+            "type": "integer"
+          },
+          "is_valid": {
+            "type": "boolean"
+          }
+        }
+      },
+      "VolatilityData": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "window_size": {
+            "type": "integer"
+          },
+          "volatility_type": {
+            "type": "string",
+            "enum": ["STANDARD_DEVIATION", "ANNUALIZED"]
+          },
+          "volatility_value": {
+            "type": "number",
+            "minimum": 0
+          },
+          "mean_return": {
+            "type": "number"
+          },
+          "sample_size": {
+            "type": "integer"
+          }
+        }
+      },
+      "MomentumData": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "indicator_type": {
+            "type": "string",
+            "enum": ["SIMPLE_MOMENTUM", "RSI", "ROC"]
+          },
+          "indicator_value": {
+            "type": "number"
+          },
+          "lookback_period": {
+            "type": "integer"
+          },
+          "signal_strength": {
+            "type": "number",
+            "minimum": -1,
+            "maximum": 1
+          },
+          "interpretation": {
+            "type": "string"
+          }
+        }
+      },
+      "FeatureSummary": {
+        "type": "object",
+        "properties": {
+          "instruments_processed": {
+            "type": "integer"
+          },
+          "total_data_points": {
+            "type": "integer"
+          },
+          "features_calculated": {
+            "type": "integer"
+          },
+          "processing_time_ms": {
+            "type": "integer"
+          },
+          "memory_usage_mb": {
+            "type": "number"
+          }
+        }
+      },
+      "DataQualityReport": {
+        "type": "object",
+        "properties": {
+          "overall_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "completeness_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "outliers_detected": {
+            "type": "integer"
+          },
+          "gaps_found": {
+            "type": "integer"
+          },
+          "recommendations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "GenerationMetadata": {
+        "type": "object",
+        "properties": {
+          "calculation_timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "parameters_hash": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "configuration_used": {
+            "$ref": "#/components/schemas/FeatureConfig"
+          }
+        }
+      },
+      "DataValidationRequest": {
+        "type": "object",
+        "required": ["instruments", "price_data"],
+        "properties": {
+          "instruments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Instrument"
+            }
+          },
+          "price_data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricePoint"
+            }
+          }
+        }
+      },
+      "DataValidationResponse": {
+        "type": "object",
+        "properties": {
+          "is_valid": {
+            "type": "boolean"
+          },
+          "quality_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationIssue"
+            }
+          },
+          "recommendations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ValidationIssue": {
+        "type": "object",
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["ERROR", "WARNING", "INFO"]
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "affected_instruments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "InstrumentFeatureResponse": {
+        "type": "object",
+        "properties": {
+          "instrument": {
+            "$ref": "#/components/schemas/Instrument"
+          },
+          "returns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReturnData"
+            }
+          },
+          "volatility": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VolatilityData"
+            }
+          },
+          "momentum": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MomentumData"
+            }
+          },
+          "date_range": {
+            "type": "object",
+            "properties": {
+              "start_date": {
+                "type": "string",
+                "format": "date"
+              },
+              "end_date": {
+                "type": "string",
+                "format": "date"
+              }
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

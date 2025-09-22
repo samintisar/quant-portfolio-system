@@ -1,0 +1,363 @@
+{
+  "report_id": "risk-fe168145f7044d7d86aa6a840d3e90f7",
+  "generated_at": "2025-09-22T02:25:56.445030",
+  "configuration": {
+    "confidence_levels": [
+      0.95,
+      0.99
+    ],
+    "horizons": [
+      1,
+      10
+    ],
+    "decay_lambda": 0.94,
+    "mc_paths": 10000,
+    "seed": 1234,
+    "stress_scenarios": [
+      "macro_recession"
+    ],
+    "data_frequency": "daily",
+    "reports": [
+      "covariance",
+      "var",
+      "cvar",
+      "stress",
+      "visualizations"
+    ],
+    "covariance_methods": [
+      "sample",
+      "ledoit_wolf",
+      "ewma"
+    ],
+    "var_methods": [
+      "historical",
+      "parametric",
+      "monte_carlo"
+    ],
+    "cvar_methods": [
+      "historical",
+      "monte_carlo"
+    ]
+  },
+  "covariance_results": [
+    {
+      "method": "sample",
+      "matrix": [
+        [
+          7.958333333333332e-05,
+          4.575e-05
+        ],
+        [
+          4.575e-05,
+          0.00012291666666666665
+        ]
+      ],
+      "metadata": {
+        "sample_size": 4
+      }
+    },
+    {
+      "method": "ledoit_wolf",
+      "matrix": [
+        [
+          7.424393751642948e-05,
+          3.5760223210777374e-06
+        ],
+        [
+          3.5760223210777374e-06,
+          7.76310624835705e-05
+        ]
+      ],
+      "metadata": {
+        "sample_size": 4
+      }
+    },
+    {
+      "method": "ewma",
+      "matrix": [
+        [
+          1.2735567510000012e-05,
+          7.346931210000005e-06
+        ],
+        [
+          7.346931210000005e-06,
+          2.061701391000002e-05
+        ]
+      ],
+      "metadata": {
+        "decay_lambda": 0.94
+      }
+    }
+  ],
+  "risk_metrics": [
+    {
+      "metric": "var",
+      "confidence": 0.95,
+      "horizon": 1,
+      "value": 0.0012024999999999998,
+      "method": "historical",
+      "sample_size": 4,
+      "metadata": {
+        "horizon_scale": 1.0,
+        "raw_value": 0.0012024999999999998
+      }
+    },
+    {
+      "metric": "var",
+      "confidence": 0.95,
+      "horizon": 1,
+      "value": 0.0,
+      "method": "parametric",
+      "sample_size": 4,
+      "metadata": {
+        "horizon_scale": 1.0,
+        "raw_value": 0.00609427517392043
+      }
+    },
+    {
+      "metric": "var",
+      "confidence": 0.95,
+      "horizon": 1,
+      "value": 0.005920371719822679,
+      "method": "monte_carlo",
+      "sample_size": 10000,
+      "metadata": {
+        "horizon_scale": 1.0,
+        "raw_value": 0.005920371719822679
+      }
+    },
+    {
+      "metric": "cvar",
+      "confidence": 0.95,
+      "horizon": 1,
+      "value": 0.0020500000000000006,
+      "method": "historical",
+      "sample_size": 4,
+      "metadata": {
+        "horizon_scale": 1.0
+      }
+    },
+    {
+      "metric": "cvar",
+      "confidence": 0.95,
+      "horizon": 1,
+      "value": 0.009438572061034699,
+      "method": "monte_carlo",
+      "sample_size": 10000,
+      "metadata": {
+        "horizon_scale": 1.0
+      }
+    },
+    {
+      "metric": "var",
+      "confidence": 0.95,
+      "horizon": 10,
+      "value": 0.003802638886352476,
+      "method": "historical",
+      "sample_size": 4,
+      "metadata": {
+        "horizon_scale": 3.1622776601683795,
+        "raw_value": 0.003802638886352476
+      }
+    },
+    {
+      "metric": "var",
+      "confidence": 0.95,
+      "horizon": 10,
+      "value": 0.0,
+      "method": "parametric",
+      "sample_size": 4,
+      "metadata": {
+        "horizon_scale": 3.1622776601683795,
+        "raw_value": 0.01927179023740734
+      }
+    },
+    {
+      "metric": "var",
+      "confidence": 0.95,
+      "horizon": 10,
+      "value": 0.018721859229487905,
+      "method": "monte_carlo",
+      "sample_size": 10000,
+      "metadata": {
+        "horizon_scale": 3.1622776601683795,
+        "raw_value": 0.018721859229487905
+      }
+    },
+    {
+      "metric": "cvar",
+      "confidence": 0.95,
+      "horizon": 10,
+      "value": 0.00648266920334518,
+      "method": "historical",
+      "sample_size": 4,
+      "metadata": {
+        "horizon_scale": 3.1622776601683795
+      }
+    },
+    {
+      "metric": "cvar",
+      "confidence": 0.95,
+      "horizon": 10,
+      "value": 0.029847385572499448,
+      "method": "monte_carlo",
+      "sample_size": 10000,
+      "metadata": {
+        "horizon_scale": 3.1622776601683795
+      }
+    },
+    {
+      "metric": "var",
+      "confidence": 0.99,
+      "horizon": 1,
+      "value": 0.0018805000000000004,
+      "method": "historical",
+      "sample_size": 4,
+      "metadata": {
+        "horizon_scale": 1.0,
+        "raw_value": 0.0018805000000000004
+      }
+    },
+    {
+      "metric": "var",
+      "confidence": 0.99,
+      "horizon": 1,
+      "value": 0.0,
+      "method": "parametric",
+      "sample_size": 4,
+      "metadata": {
+        "horizon_scale": 1.0,
+        "raw_value": 0.011861296505941062
+      }
+    },
+    {
+      "metric": "var",
+      "confidence": 0.99,
+      "horizon": 1,
+      "value": 0.012093452654421369,
+      "method": "monte_carlo",
+      "sample_size": 10000,
+      "metadata": {
+        "horizon_scale": 1.0,
+        "raw_value": 0.012093452654421369
+      }
+    },
+    {
+      "metric": "cvar",
+      "confidence": 0.99,
+      "horizon": 1,
+      "value": 0.0020500000000000006,
+      "method": "historical",
+      "sample_size": 4,
+      "metadata": {
+        "horizon_scale": 1.0
+      }
+    },
+    {
+      "metric": "cvar",
+      "confidence": 0.99,
+      "horizon": 1,
+      "value": 0.014673420880281639,
+      "method": "monte_carlo",
+      "sample_size": 10000,
+      "metadata": {
+        "horizon_scale": 1.0
+      }
+    },
+    {
+      "metric": "var",
+      "confidence": 0.99,
+      "horizon": 10,
+      "value": 0.005946663139946639,
+      "method": "historical",
+      "sample_size": 4,
+      "metadata": {
+        "horizon_scale": 3.1622776601683795,
+        "raw_value": 0.005946663139946639
+      }
+    },
+    {
+      "metric": "var",
+      "confidence": 0.99,
+      "horizon": 10,
+      "value": 0.0,
+      "method": "parametric",
+      "sample_size": 4,
+      "metadata": {
+        "horizon_scale": 3.1622776601683795,
+        "raw_value": 0.03750871296137068
+      }
+    },
+    {
+      "metric": "var",
+      "confidence": 0.99,
+      "horizon": 10,
+      "value": 0.03824285516338068,
+      "method": "monte_carlo",
+      "sample_size": 10000,
+      "metadata": {
+        "horizon_scale": 3.1622776601683795,
+        "raw_value": 0.03824285516338068
+      }
+    },
+    {
+      "metric": "cvar",
+      "confidence": 0.99,
+      "horizon": 10,
+      "value": 0.00648266920334518,
+      "method": "historical",
+      "sample_size": 4,
+      "metadata": {
+        "horizon_scale": 3.1622776601683795
+      }
+    },
+    {
+      "metric": "cvar",
+      "confidence": 0.99,
+      "horizon": 10,
+      "value": 0.04640143104796286,
+      "method": "monte_carlo",
+      "sample_size": 10000,
+      "metadata": {
+        "horizon_scale": 3.1622776601683795
+      }
+    }
+  ],
+  "stress_impacts": [
+    {
+      "scenario_id": "macro_recession",
+      "expected_loss": 1.303027792966955,
+      "worst_case_loss": 1.9545416894504324,
+      "factor_contributions": {
+        "equity_return": 0.0006769854749795844,
+        "credit_spread_bp": 1.2693477655867207,
+        "gdp_growth_delta": 0.021155796093112012,
+        "volatility_multiplier": 0.011847245812142726
+      },
+      "notes": "Broad macro downturn with equity drawdown and credit spread widening."
+    }
+  ],
+  "visualizations": [
+    {
+      "artifact_id": "d653a719-5494-427a-9c3a-a6b541cd4bab",
+      "type": "factor_exposure",
+      "path": "data/storage/reports/factor_exposure_20250922022556.png",
+      "format": "png",
+      "generated_at": "2025-09-22T02:25:56.171461"
+    },
+    {
+      "artifact_id": "6d848e96-2d5c-488d-9e9a-8925db9545be",
+      "type": "var_timeseries",
+      "path": "data/storage/reports/var_series_20250922022556.svg",
+      "format": "svg",
+      "generated_at": "2025-09-22T02:25:56.171461"
+    },
+    {
+      "artifact_id": "2afebfdd-e401-4332-9cf1-acdb823d6ee0",
+      "type": "cvar_distribution",
+      "path": "data/storage/reports/cvar_distribution_20250922022556.html",
+      "format": "html",
+      "generated_at": "2025-09-22T02:25:56.171461"
+    }
+  ]
+}

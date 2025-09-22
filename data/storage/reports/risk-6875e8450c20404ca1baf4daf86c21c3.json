@@ -1,0 +1,145 @@
+{
+  "report_id": "risk-6875e8450c20404ca1baf4daf86c21c3",
+  "generated_at": "2025-09-22T01:00:10.734305",
+  "configuration": {
+    "confidence_levels": [
+      0.95
+    ],
+    "horizons": [
+      1
+    ],
+    "decay_lambda": 0.94,
+    "mc_paths": 10000,
+    "seed": 1234,
+    "stress_scenarios": [
+      "macro_recession"
+    ],
+    "data_frequency": "daily",
+    "reports": [
+      "covariance",
+      "var",
+      "cvar",
+      "stress",
+      "visualizations"
+    ],
+    "covariance_methods": [
+      "sample",
+      "ledoit_wolf"
+    ],
+    "var_methods": [
+      "historical",
+      "parametric"
+    ],
+    "cvar_methods": [
+      "historical"
+    ]
+  },
+  "covariance_results": [
+    {
+      "method": "sample",
+      "matrix": [
+        [
+          7.958333333333332e-05,
+          4.575e-05
+        ],
+        [
+          4.575e-05,
+          0.00012291666666666665
+        ]
+      ],
+      "metadata": {
+        "sample_size": 4
+      }
+    },
+    {
+      "method": "ledoit_wolf",
+      "matrix": [
+        [
+          7.424393751642948e-05,
+          3.5760223210777374e-06
+        ],
+        [
+          3.5760223210777374e-06,
+          7.76310624835705e-05
+        ]
+      ],
+      "metadata": {
+        "sample_size": 4
+      }
+    }
+  ],
+  "risk_metrics": [
+    {
+      "metric": "var",
+      "confidence": 0.95,
+      "horizon": 1,
+      "value": 0.0012024999999999998,
+      "method": "historical",
+      "sample_size": 4,
+      "metadata": {
+        "horizon_scale": 1.0,
+        "raw_value": 0.0012024999999999998
+      }
+    },
+    {
+      "metric": "var",
+      "confidence": 0.95,
+      "horizon": 1,
+      "value": 0.0,
+      "method": "parametric",
+      "sample_size": 4,
+      "metadata": {
+        "horizon_scale": 1.0,
+        "raw_value": 0.00609427517392043
+      }
+    },
+    {
+      "metric": "cvar",
+      "confidence": 0.95,
+      "horizon": 1,
+      "value": 0.0020500000000000006,
+      "method": "historical",
+      "sample_size": 4,
+      "metadata": {
+        "horizon_scale": 1.0
+      }
+    }
+  ],
+  "stress_impacts": [
+    {
+      "scenario_id": "macro_recession",
+      "expected_loss": 1.303027792966955,
+      "worst_case_loss": 1.9545416894504324,
+      "factor_contributions": {
+        "equity_return": 0.0006769854749795844,
+        "credit_spread_bp": 1.2693477655867207,
+        "gdp_growth_delta": 0.021155796093112012,
+        "volatility_multiplier": 0.011847245812142726
+      },
+      "notes": "Broad macro downturn with equity drawdown and credit spread widening."
+    }
+  ],
+  "visualizations": [
+    {
+      "artifact_id": "0770afe9-f3f6-4d43-9ef0-7fa9b5860625",
+      "type": "factor_exposure",
+      "path": "data/storage/reports/factor_exposure_20250922010010.png",
+      "format": "png",
+      "generated_at": "2025-09-22T01:00:10.498217"
+    },
+    {
+      "artifact_id": "a1ca7564-327a-435a-919d-87deec730efb",
+      "type": "var_timeseries",
+      "path": "data/storage/reports/var_series_20250922010010.svg",
+      "format": "svg",
+      "generated_at": "2025-09-22T01:00:10.498217"
+    },
+    {
+      "artifact_id": "6ef7edd6-48e9-4f7c-bf14-7adffd5b8e94",
+      "type": "cvar_distribution",
+      "path": "data/storage/reports/cvar_distribution_20250922010010.html",
+      "format": "html",
+      "generated_at": "2025-09-22T01:00:10.498217"
+    }
+  ]
+}

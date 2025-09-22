@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "scenarios": [
+    {
+      "scenario_id": "macro_recession",
+      "name": "Macro Recession",
+      "description": "Broad macro downturn with equity drawdown and credit spread widening.",
+      "shock_type": "macro",
+      "parameters": {
+        "equity_return": -0.08,
+        "credit_spread_bp": 150,
+        "gdp_growth_delta": -2.5,
+        "volatility_multiplier": 1.4
+      },
+      "horizon": 10
+    },
+    {
+      "scenario_id": "inflation_spike",
+      "name": "Inflation Spike",
+      "description": "Unexpected inflation surprise leading to rate hike and commodity surge.",
+      "shock_type": "macro",
+      "parameters": {
+        "treasury_shift_bp": 85,
+        "breakeven_inflation_bp": 120,
+        "commodity_return": 0.06,
+        "fx_depreciation": 0.03
+      },
+      "horizon": 5
+    },
+    {
+      "scenario_id": "liquidity_crunch",
+      "name": "Liquidity Crunch",
+      "description": "Funding stress with widening bid-ask and deleveraging pressure.",
+      "shock_type": "macro",
+      "parameters": {
+        "funding_cost_bp": 200,
+        "bid_ask_multiplier": 2.5,
+        "prime_broker_margin": 0.15
+      },
+      "horizon": 10
+    }
+  ],
+  "catalogs": {
+    "baseline": ["macro_recession", "inflation_spike"],
+    "regulatory": ["macro_recession", "liquidity_crunch"]
+  }
+}

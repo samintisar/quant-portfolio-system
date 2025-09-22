@@ -1,113 +1,98 @@
-# Quantitative Trading System Constitution
+<!--
+Sync Impact Report
+Version change: 1.0.0 -> 1.1.0
+Modified principles:
+- Principle slot 1 -> I. Data Fidelity Is Mandatory
+- Principle slot 2 -> II. Risk-First Portfolio Governance
+- Principle slot 3 -> III. Test-Driven Statistical Validation
+- Principle slot 4 -> IV. Reproducible CLI-Oriented Workflows
+- Principle slot 5 -> V. Observability And Performance Discipline
+Added sections:
+- Operational Constraints
+- Development Workflow & Quality Gates
+Removed sections:
+- None
+Templates requiring updates:
+- updated: .specify/templates/plan-template.md
+- updated: CLAUDE.md
+Follow-up TODOs:
+- TODO(RATIFICATION_DATE): Document original adoption date from project history.
+-->
+# Quant Portfolio System Constitution
 
 ## Core Principles
 
-### I. Library-First Architecture
-Every feature starts as a standalone, testable library with clear mathematical purpose. Libraries must be:
-- Self-contained with minimal dependencies
-- Independently testable with statistical validation
-- Well-documented with mathematical formulations
-- Domain-focused: data ingestion, modeling, optimization, risk, backtesting
+### I. Data Fidelity Is Mandatory
+All ingestion, preprocessing, and storage work MUST route through the modules under `data/src/` and
+approved adapters. Every dataset powering strategies or portfolio engines MUST pass the automated
+validation pipelines (`data/src/lib/validation.py`) and ship with quality reports saved to
+`data/storage/`. Teams MUST run `python scripts/setup_data_environment.py` prior to altering storage
+so required directories and schemas exist. Rationale: No allocation or forecast is trusted unless its
+inputs are traceable, validated, and reproducible.
 
-### II. CLI Interface & Reproducibility
-Every library exposes functionality via CLI for reproducible research:
-- Text in/out protocol: stdin/args → stdout, errors → stderr
-- Support JSON + human-readable formats for parameter configs
-- All model runs must be reproducible with seed control
-- Configuration files must be version-controlled
+### II. Risk-First Portfolio Governance
+Portfolio changes MUST demonstrate compliance with defined risk thresholds (Sharpe, max drawdown,
+VaR/CVaR) before merge or deployment. Optimization configs in `portfolio/` and strategies in
+`strategies/` MUST document risk assumptions and provide guardrail tests that fail when constraints
+are breached. New models MUST expose scenario and stress results in review artifacts so reviewers can
+reject unsafe proposals. Rationale: Capital protection outranks return seeking in production
+workflows.
 
-### III. Test-First Development (NON-NEGOTIABLE)
-TDD mandatory with emphasis on statistical validation:
-- Tests written → User approved → Tests fail → Then implement
-- Unit tests for mathematical correctness
-- Statistical tests for model performance (backtests, Monte Carlo)
-- Integration tests for data pipeline integrity
+### III. Test-Driven Statistical Validation
+Every change MUST start with failing tests that encode expected financial behaviour (`pytest`
+workflows in `tests/`). Statistical assertions (coverage, factor significance, backtest expectations)
+MUST live alongside unit, integration, and performance suites and run via `pytest -m "not slow"
+before PR submission. Code is unmergeable until `python -m pytest`, `flake8`, and `mypy .` pass
+without regression. Rationale: We only trust math that is reproducible and automatically checked.
 
-### IV. Data Quality & Validation
-Rigorous data validation at every stage:
-- Input data validation (missing values, outliers, consistency)
-- Model output validation (statistical properties, bounds checking)
-- Pipeline integrity tests (end-to-end data flow)
-- Performance monitoring (execution time, memory usage)
+### IV. Reproducible CLI-Oriented Workflows
+All public capabilities MUST be invocable via CLI entry points or automation scripts (`data/src/cli`,
+`scripts/`, `config/`). Configuration changes MUST be expressed through checked-in files under
+`config/` with environment overrides documented, never via ad-hoc local edits. Workflows MUST
+document invocation commands and expected artifacts in `examples/` or docs so another quant can
+replay results on a fresh machine. Rationale: Reproducible pipelines keep research auditable and
+shareable.
 
-### V. Risk Management & Observability
-Comprehensive logging and risk controls:
-- Structured logging for all model decisions and portfolio changes
-- Risk metrics calculation and monitoring (VaR, drawdown, exposure)
-- Performance attribution tracking
-- Alert systems for constraint violations
+### V. Observability And Performance Discipline
+Data pipelines, models, and strategies MUST emit structured logging and metrics sufficient to
+diagnose failures and drift. Performance budgets (10M rows <30s, <4GB memory) MUST be enforced with
+automated checks in `tests/performance/` and upheld before shipping compute-heavy changes in
+`forecasting/`. Any GPU workloads MUST declare resource needs via `.env.gpu` and include monitoring
+guidance. Rationale: Real-time operations demand transparent health signals and predictable
+throughput.
 
-### VI. Versioning & Model Governance
-Strict versioning for model reproducibility:
-- MAJOR.MINOR.PATCH format for all libraries
-- Model versioning with parameter snapshots
-- Backward compatibility for historical analysis
-- Documentation of all model changes and rationale
+## Operational Constraints
 
-### VII. Simplicity & Financial Soundness
-Start simple, validate thoroughly before adding complexity:
-- Implement basic models before advanced techniques
-- Validate against established benchmarks (S&P 500, risk-free rate)
-- No premature optimization - measure performance bottlenecks first
-- Maximum 3 libraries per feature initially
+- Python 3.11+ is the only supported runtime; dependencies MUST flow through
+  `docs/requirements.txt` and installations use `pip install -r docs/requirements.txt`.
+- Repository structure MUST respect directory ownership; new assets belong in their domain-specific
+  modules (`data/src/`, `portfolio/`, `strategies/`, `forecasting/`, `tests/`).
+- Storage directories under `data/storage/` are runtime artifacts and MUST NOT be committed; data
+  mutations require documenting provenance in PR descriptions.
+- GPU workflows MUST isolate heavy compute inside `forecasting/` and declare configuration via
+  `.env.gpu` templates.
 
-## Financial Constraints
+## Development Workflow & Quality Gates
 
-### Performance Standards
-- Target Sharpe ratio > 1.5 for optimized portfolios
-- Maximum drawdown < 15% under normal market conditions
-- Benchmark outperformance > 200 bps annually
-- Portfolio rebalancing frequency: weekly maximum
-
-### Risk Limits
-- Single name concentration < 5% of portfolio
-- Sector concentration < 20% of portfolio
-- Leverage ratio < 1.5x for long-only strategies
-- VaR at 95% confidence < 2% daily portfolio value
-
-### Data Requirements
-- Minimum 10 years historical data for backtesting
-- Daily data frequency minimum (intraday preferred)
-- Coverage of 500+ liquid instruments
-- Historical data quality validation required
-
-## Development Workflow
-
-### Model Development Process
-1. Literature review and theoretical foundation
-2. Data exploration and feature engineering
-3. Model implementation with statistical tests
-4. Backtesting with out-of-sample validation
-5. Risk assessment and constraint verification
-6. Performance attribution analysis
-
-### Code Review Requirements
-- Mathematical correctness verification
-- Statistical test coverage > 80%
-- Backtest results validation
-- Risk metrics calculation review
-- Performance benchmark comparison
-
-### Research Validation Gates
-- All statistical tests passing
-- Backtest performance meets targets
-- Risk constraints validated
-- Documentation complete with mathematical formulations
+- Run `python scripts/setup_data_environment.py` before touching ingestion or backtest code.
+- Format with `black` and `isort` (88-character width) before review; enforce `flake8` and `mypy .`.
+- Pre-PR verification MUST include `pytest -m "not slow"`; release branches MUST pass `python -m
+  pytest`.
+- Backtests or data workflows MUST be validated by executing `python scripts/run_preprocessing.py
+  --config config/pipeline_config.json` or the documented equivalent pipeline.
+- Configuration changes MUST clone existing templates rather than editing committed defaults; record
+  overrides and environment requirements in PR notes.
+- Reviewers MUST confirm constitution gate checklists in plan and task templates before merge.
 
 ## Governance
 
-### Constitution Authority
-This constitution supersedes all other development practices. All features must:
-- Pass constitutional compliance checks
-- Justify any complexity deviations
-- Use CLAUDE.md for runtime development guidance
-- Validate against financial soundness principles
+Amendments require approval from the quantitative platform maintainers and documentation owners,
+with risk lead sign-off when principles affect capital allocation. Every change MUST include a version
+bump and update dependent templates (`.specify/templates/*.md`, agent guidance files, README
+references). Versioning follows semantic rules: MAJOR for breaking removals or redefinition of
+principles, MINOR for added principles or expanded duties, PATCH for clarifications. Submit amendment
+PRs with rationale, testing summary, and rollback plan. Compliance reviews run quarterly; violations
+trigger remediation tasks tracked in `tasks.md` and block deployments until resolved.
 
-### Amendment Process
-Model and constitution changes require:
-- Statistical evidence supporting the change
-- Risk impact assessment
-- Backward compatibility analysis
-- Documentation of rationale and alternatives considered
-
-**Version**: 1.0.0 | **Ratified**: 2025-09-17 | **Last Amended**: 2025-09-17
+**Version**: 1.1.0 | **Ratified**: TODO(RATIFICATION_DATE): Document original adoption date from project
+history. | **Last Amended**: 2025-09-21

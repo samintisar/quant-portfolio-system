@@ -1,0 +1,134 @@
+{
+  "timestamp": "2025-09-21T00:49:17.858452",
+  "gpu_info": {
+    "name": "NVIDIA GeForce RTX 3060 Laptop GPU",
+    "compute_capability": "8.6",
+    "total_memory": 6.441926656,
+    "memory_allocated": 0.0,
+    "memory_reserved": 0.0,
+    "memory_utilization": 0.0,
+    "device_count": 1,
+    "current_device": 0,
+    "is_available": true,
+    "mixed_precision_enabled": true,
+    "torch_compile_enabled": false
+  },
+  "matrix_operations": [
+    {
+      "size": 1000,
+      "cpu_time_ms": 15.07711410522461,
+      "gpu_time_ms": 61.841726303100586,
+      "speedup": 0.24380163696155877
+    },
+    {
+      "size": 2000,
+      "cpu_time_ms": 98.6170768737793,
+      "gpu_time_ms": 6.7157745361328125,
+      "speedup": 14.684393638170974
+    },
+    {
+      "size": 5000,
+      "cpu_time_ms": 976.266622543335,
+      "gpu_time_ms": 40.549516677856445,
+      "speedup": 24.075912674847274
+    }
+  ],
+  "model_inference": [
+    {
+      "model": "small",
+      "batch_size": 16,
+      "parameters": 5101,
+      "avg_inference_time_ms": 0.18398284912109375,
+      "throughput_ips": 5435.289239062824,
+      "memory_used_gb": 0.008986624
+    },
+    {
+      "model": "small",
+      "batch_size": 32,
+      "parameters": 5101,
+      "avg_inference_time_ms": 0.12399673461914064,
+      "throughput_ips": 8064.728503307184,
+      "memory_used_gb": 0.008989696
+    },
+    {
+      "model": "small",
+      "batch_size": 64,
+      "parameters": 5101,
+      "avg_inference_time_ms": 0.1009511947631836,
+      "throughput_ips": 9905.776770110057,
+      "memory_used_gb": 0.00899584
+    },
+    {
+      "model": "small",
+      "batch_size": 128,
+      "parameters": 5101,
+      "avg_inference_time_ms": 0.2638530731201172,
+      "throughput_ips": 3789.9880724328623,
+      "memory_used_gb": 0.00900864
+    },
+    {
+      "model": "medium",
+      "batch_size": 16,
+      "parameters": 161281,
+      "avg_inference_time_ms": 0.2252054214477539,
+      "throughput_ips": 4440.3904380783,
+      "memory_used_gb": 0.009323008
+    },
+    {
+      "model": "medium",
+      "batch_size": 32,
+      "parameters": 161281,
+      "avg_inference_time_ms": 0.1527690887451172,
+      "throughput_ips": 6545.826830638616,
+      "memory_used_gb": 0.00933888
+    },
+    {
+      "model": "medium",
+      "batch_size": 64,
+      "parameters": 161281,
+      "avg_inference_time_ms": 0.4354667663574219,
+      "throughput_ips": 2296.3864920502824,
+      "memory_used_gb": 0.009370624
+    },
+    {
+      "model": "medium",
+      "batch_size": 128,
+      "parameters": 161281,
+      "avg_inference_time_ms": 0.22825241088867188,
+      "throughput_ips": 4381.114732180162,
+      "memory_used_gb": 0.009434624
+    },
+    {
+      "model": "large",
+      "batch_size": 16,
+      "parameters": 676865,
+      "avg_inference_time_ms": 0.44548511505126953,
+      "throughput_ips": 2244.7439122290607,
+      "memory_used_gb": 0.010693632
+    },
+    {
+      "model": "large",
+      "batch_size": 32,
+      "parameters": 676865,
+      "avg_inference_time_ms": 0.2799797058105469,
+      "throughput_ips": 3571.687444648818,
+      "memory_used_gb": 0.010725376
+    },
+    {
+      "model": "large",
+      "batch_size": 64,
+      "parameters": 676865,
+      "avg_inference_time_ms": 0.2999687194824219,
+      "throughput_ips": 3333.6809308831944,
+      "memory_used_gb": 0.010789376
+    },
+    {
+      "model": "large",
+      "batch_size": 128,
+      "parameters": 676865,
+      "avg_inference_time_ms": 0.3200817108154297,
+      "throughput_ips": 3124.2022465214673,
+      "memory_used_gb": 0.010917376
+    }
+  ]
+}

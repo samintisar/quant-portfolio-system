@@ -1,0 +1,807 @@
+openapi: 3.0.3
+info:
+  title: Quantitative Forecasting API
+  description: API for generating and managing financial forecasts, volatility predictions, and market regime classifications
+  version: 1.0.0
+  contact:
+    name: Quantitative Trading System
+    email: quant@example.com
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Development server
+
+paths:
+  /forecasts/returns:
+    post:
+      summary: Generate return forecasts for assets
+      description: Create ARIMA-based return forecasts with confidence intervals
+      operationId: generateReturnForecast
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForecastRequest'
+            examples:
+              singleAsset:
+                summary: Single asset forecast
+                value:
+                  assets: ["AAPL.US"]
+                  model_config:
+                    model_type: "ARIMA"
+                    parameters:
+                      p: 2
+                      d: 1
+                      q: 1
+                  forecast_horizon: 30
+                  confidence_levels: [0.95]
+              multipleAssets:
+                summary: Multiple assets forecast
+                value:
+                  assets: ["AAPL.US", "MSFT.US", "GOOGL.US"]
+                  model_config:
+                    model_type: "ARIMA"
+                    auto_fit: true
+                  forecast_horizon: 30
+                  confidence_levels: [0.90, 0.95]
+      responses:
+        '200':
+          description: Successful forecast generation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForecastResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable entity - data quality issues
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /forecasts/volatility:
+    post:
+      summary: Generate volatility forecasts for assets
+      description: Create GARCH-based volatility forecasts
+      operationId: generateVolatilityForecast
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolatilityForecastRequest'
+      responses:
+        '200':
+          description: Successful volatility forecast generation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolatilityForecastResponse'
+        '400':
+          description: Invalid request parameters
+        '422':
+          description: Unprocessable entity - data quality issues
+
+  /regimes/detect:
+    post:
+      summary: Detect market regimes for assets
+      description: Use Hidden Markov Models to classify market states
+      operationId: detectMarketRegimes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegimeDetectionRequest'
+      responses:
+        '200':
+          description: Successful regime detection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegimeDetectionResponse'
+        '400':
+          description: Invalid request parameters
+        '422':
+          description: Unprocessable entity - data quality issues
+
+  /scenarios/model:
+    post:
+      summary: Model economic scenarios and impacts
+      description: Generate economic scenario impacts on assets
+      operationId: modelEconomicScenarios
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScenarioModelingRequest'
+      responses:
+        '200':
+          description: Successful scenario modeling
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioModelingResponse'
+        '400':
+          description: Invalid request parameters
+        '422':
+          description: Unprocessable entity - data quality issues
+
+  /signals/validate:
+    post:
+      summary: Validate forecast signals
+      description: Perform statistical and economic validation of signals
+      operationId: validateSignals
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignalValidationRequest'
+      responses:
+        '200':
+          description: Successful signal validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignalValidationResponse'
+        '400':
+          description: Invalid request parameters
+        '422':
+          description: Unprocessable entity - data quality issues
+
+  /assets:
+    get:
+      summary: List available assets
+      description: Get list of assets available for forecasting
+      operationId: listAssets
+      parameters:
+        - name: asset_class
+          in: query
+          description: Filter by asset class
+          schema:
+            type: string
+            enum: [Equity, Bond, Commodity, Currency, ETF]
+        - name: sector
+          in: query
+          description: Filter by sector
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of assets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Asset'
+
+  /forecasts/{forecast_id}:
+    get:
+      summary: Get forecast by ID
+      description: Retrieve a specific forecast
+      operationId: getForecast
+      parameters:
+        - name: forecast_id
+          in: path
+          required: true
+          description: Forecast identifier
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Forecast details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Forecast'
+        '404':
+          description: Forecast not found
+
+components:
+  schemas:
+    Asset:
+      type: object
+      required:
+        - asset_id
+        - symbol
+        - asset_class
+      properties:
+        asset_id:
+          type: string
+          example: "AAPL.US"
+          description: Unique asset identifier
+        symbol:
+          type: string
+          example: "AAPL"
+          description: Ticker symbol
+        name:
+          type: string
+          example: "Apple Inc."
+          description: Full asset name
+        asset_class:
+          type: string
+          enum: [Equity, Bond, Commodity, Currency, ETF]
+          example: "Equity"
+          description: Asset classification
+        sector:
+          type: string
+          example: "Technology"
+          description: GICS sector classification
+        country:
+          type: string
+          example: "US"
+          description: Primary market country
+        currency:
+          type: string
+          example: "USD"
+          description: Trading currency
+        min_data_points:
+          type: integer
+          example: 252
+          description: Minimum historical data points required
+
+    ForecastRequest:
+      type: object
+      required:
+        - assets
+        - forecast_horizon
+      properties:
+        assets:
+          type: array
+          items:
+            type: string
+          example: ["AAPL.US", "MSFT.US"]
+          description: List of asset IDs to forecast
+        model_config:
+          type: object
+          description: Model configuration parameters
+          properties:
+            model_type:
+              type: string
+              enum: [ARIMA, SARIMA, AutoARIMA]
+              default: ARIMA
+            parameters:
+              type: object
+              description: ARIMA parameters (p, d, q)
+              properties:
+                p:
+                  type: integer
+                  minimum: 0
+                  maximum: 5
+                d:
+                  type: integer
+                  minimum: 0
+                  maximum: 2
+                q:
+                  type: integer
+                  minimum: 0
+                  maximum: 5
+            auto_fit:
+              type: boolean
+              default: false
+              description: Automatically select optimal parameters
+        forecast_horizon:
+          type: integer
+          minimum: 1
+          maximum: 252
+          example: 30
+          description: Number of periods to forecast ahead
+        confidence_levels:
+          type: array
+          items:
+            type: number
+            minimum: 0
+            maximum: 1
+          example: [0.90, 0.95]
+          description: Confidence levels for intervals
+        start_date:
+          type: string
+          format: date
+          description: Start date for historical data (default: all available)
+        end_date:
+          type: string
+          format: date
+          description: End date for historical data (default: latest)
+
+    ForecastResponse:
+      type: object
+      required:
+        - forecasts
+        - metadata
+      properties:
+        forecasts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Forecast'
+        metadata:
+          type: object
+          properties:
+            request_id:
+              type: string
+              description: Unique request identifier
+            processing_time:
+              type: number
+              description: Processing time in seconds
+            data_quality:
+              type: object
+              description: Data quality metrics
+            warnings:
+              type: array
+              items:
+                type: string
+              description: Processing warnings
+
+    Forecast:
+      type: object
+      required:
+        - forecast_id
+        - asset_id
+        - model_type
+        - forecast_horizon
+        - forecast_values
+        - confidence_intervals
+        - metrics
+      properties:
+        forecast_id:
+          type: string
+          description: Unique forecast identifier
+        asset_id:
+          type: string
+          description: Asset identifier
+        model_type:
+          type: string
+          description: Model type used
+        forecast_horizon:
+          type: integer
+          description: Number of periods forecasted
+        created_at:
+          type: string
+          format: date-time
+          description: Forecast creation timestamp
+        parameters:
+          type: object
+          description: Model parameters used
+        forecast_values:
+          type: array
+          items:
+            type: number
+          description: Point forecasts
+        confidence_intervals:
+          type: object
+          description: Confidence intervals by level
+          additionalProperties:
+            type: array
+            items:
+              type: array
+              items:
+                type: number
+              description: [lower_bound, upper_bound] pairs
+        metrics:
+          type: object
+          description: Model performance metrics
+          properties:
+            rmse:
+              type: number
+              description: Root mean squared error
+            mae:
+              type: number
+              description: Mean absolute error
+            direction_accuracy:
+              type: number
+              description: Direction prediction accuracy
+            aic:
+              type: number
+              description: Akaike information criterion
+            bic:
+              type: number
+              description: Bayesian information criterion
+
+    VolatilityForecastRequest:
+      type: object
+      required:
+        - assets
+        - forecast_horizon
+      properties:
+        assets:
+          type: array
+          items:
+            type: string
+          description: List of asset IDs
+        model_config:
+          type: object
+          properties:
+            model_type:
+              type: string
+              enum: [GARCH, EGARCH, GJR_GARCH, STOCHASTIC]
+              default: GARCH
+            distribution:
+              type: string
+              enum: [normal, student_t, ged]
+              default: normal
+            parameters:
+              type: object
+              description: GARCH model parameters
+        forecast_horizon:
+          type: integer
+          minimum: 1
+          maximum: 252
+          description: Number of periods to forecast
+
+    VolatilityForecastResponse:
+      type: object
+      properties:
+        volatility_forecasts:
+          type: array
+          items:
+            $ref: '#/components/schemas/VolatilityForecast'
+        metadata:
+          $ref: '#/components/schemas/ResponseMetadata'
+
+    VolatilityForecast:
+      type: object
+      required:
+        - volatility_id
+        - asset_id
+        - model_type
+        - volatility_forecasts
+        - long_run_variance
+        - persistence
+      properties:
+        volatility_id:
+          type: string
+        asset_id:
+          type: string
+        model_type:
+          type: string
+        forecast_horizon:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        parameters:
+          type: object
+        volatility_forecasts:
+          type: array
+          items:
+            type: number
+            minimum: 0
+        long_run_variance:
+          type: number
+          minimum: 0
+        persistence:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    RegimeDetectionRequest:
+      type: object
+      required:
+        - assets
+        - n_regimes
+      properties:
+        assets:
+          type: array
+          items:
+            type: string
+          description: List of asset IDs
+        n_regimes:
+          type: integer
+          minimum: 2
+          maximum: 5
+          default: 3
+          description: Number of regimes to detect
+        features:
+          type: array
+          items:
+            type: string
+          description: Features to use for regime detection
+          default: ["returns", "volatility", "volume"]
+        lookback_period:
+          type: integer
+          minimum: 60
+          default: 252
+          description: Lookback period for regime detection
+
+    RegimeDetectionResponse:
+      type: object
+      properties:
+        regime_labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegimeLabel'
+        market_regimes:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketRegime'
+        metadata:
+          $ref: '#/components/schemas/ResponseMetadata'
+
+    RegimeLabel:
+      type: object
+      required:
+        - label_id
+        - asset_id
+        - regime_id
+        - date
+        - probability
+        - confidence
+      properties:
+        label_id:
+          type: string
+        asset_id:
+          type: string
+        regime_id:
+          type: string
+        date:
+          type: string
+          format: date
+        probability:
+          type: number
+          minimum: 0
+          maximum: 1
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        features_used:
+          type: object
+
+    MarketRegime:
+      type: object
+      required:
+        - regime_id
+        - regime_name
+        - expected_duration
+        - transition_probabilities
+      properties:
+        regime_id:
+          type: string
+        regime_name:
+          type: string
+        regime_description:
+          type: string
+        expected_duration:
+          type: number
+          minimum: 0
+        volatility_level:
+          type: string
+          enum: [Low, Medium, High]
+        return_characteristics:
+          type: object
+        transition_probabilities:
+          type: object
+          description: Transition probability matrix
+
+    ScenarioModelingRequest:
+      type: object
+      required:
+        - assets
+        - scenarios
+      properties:
+        assets:
+          type: array
+          items:
+            type: string
+          description: List of asset IDs
+        scenarios:
+          type: array
+          items:
+            type: object
+            properties:
+              scenario_name:
+                type: string
+              economic_indicators:
+                type: object
+              probability:
+                type: number
+                minimum: 0
+                maximum: 1
+        correlation_matrix:
+          type: object
+          description: Asset correlation matrix
+
+    ScenarioModelingResponse:
+      type: object
+      properties:
+        economic_scenarios:
+          type: array
+          items:
+            $ref: '#/components/schemas/EconomicScenario'
+        scenario_impacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScenarioImpact'
+        metadata:
+          $ref: '#/components/schemas/ResponseMetadata'
+
+    EconomicScenario:
+      type: object
+      required:
+        - scenario_id
+        - scenario_name
+        - probability
+        - economic_indicators
+      properties:
+        scenario_id:
+          type: string
+        scenario_name:
+          type: string
+        scenario_description:
+          type: string
+        probability:
+          type: number
+          minimum: 0
+          maximum: 1
+        economic_indicators:
+          type: object
+        duration_estimate:
+          type: number
+          minimum: 0
+
+    ScenarioImpact:
+      type: object
+      required:
+        - impact_id
+        - scenario_id
+        - asset_id
+        - expected_return
+        - return_volatility
+      properties:
+        impact_id:
+          type: string
+        scenario_id:
+          type: string
+        asset_id:
+          type: string
+        expected_return:
+          type: number
+        return_volatility:
+          type: number
+          minimum: 0
+        correlation_change:
+          type: number
+          minimum: -1
+          maximum: 1
+        probability_adjustment:
+          type: number
+          minimum: -1
+          maximum: 1
+        confidence_interval:
+          type: object
+
+    SignalValidationRequest:
+      type: object
+      required:
+        - forecast_ids
+        - validation_types
+      properties:
+        forecast_ids:
+          type: array
+          items:
+            type: string
+          description: List of forecast IDs to validate
+        validation_types:
+          type: array
+          items:
+            type: string
+            enum: [Statistical, Economic, Backtest]
+          description: Types of validation to perform
+        benchmark_id:
+          type: string
+          description: Benchmark forecast for comparison
+
+    SignalValidationResponse:
+      type: object
+      properties:
+        validations:
+          type: array
+          items:
+            $ref: '#/components/schemas/SignalValidation'
+        summary:
+          type: object
+          properties:
+            total_forecasts:
+              type: integer
+            passed_validations:
+              type: integer
+            failed_validations:
+              type: integer
+            overall_quality_score:
+              type: number
+              minimum: 0
+              maximum: 1
+        metadata:
+          $ref: '#/components/schemas/ResponseMetadata'
+
+    SignalValidation:
+      type: object
+      required:
+        - validation_id
+        - forecast_id
+        - validation_type
+        - passed_checks
+        - validation_metrics
+      properties:
+        validation_id:
+          type: string
+        forecast_id:
+          type: string
+        validation_type:
+          type: string
+        validation_metrics:
+          type: object
+        passed_checks:
+          type: boolean
+        warnings:
+          type: array
+          items:
+            type: string
+        errors:
+          type: array
+          items:
+            type: string
+
+    ResponseMetadata:
+      type: object
+      properties:
+        request_id:
+          type: string
+        processing_time:
+          type: number
+        data_quality:
+          type: object
+        warnings:
+          type: array
+          items:
+            type: string
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error type/code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+
+security:
+  - ApiKeyAuth: []
+
+securitySchemes:
+  ApiKeyAuth:
+    type: apiKey
+    in: header
+    name: X-API-Key
+    description: API key for authentication
+
+tags:
+  - name: Forecasts
+    description: Return and volatility forecasting operations
+  - name: Regimes
+    description: Market regime detection and classification
+  - name: Scenarios
+    description: Economic scenario modeling and analysis
+  - name: Validation
+    description: Signal validation and quality assessment
+  - name: Assets
+    description: Asset management and information

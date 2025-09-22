@@ -1,0 +1,111 @@
+{
+  "report_id": "risk-262073c637aa4abeb2c3ae93c6246aec",
+  "generated_at": "2025-09-22T00:59:58.243577",
+  "configuration": {
+    "confidence_levels": [
+      0.95,
+      0.99
+    ],
+    "horizons": [
+      1,
+      10
+    ],
+    "decay_lambda": 0.94,
+    "mc_paths": 5000,
+    "seed": 123,
+    "stress_scenarios": [],
+    "data_frequency": "daily",
+    "reports": [
+      "covariance"
+    ],
+    "covariance_methods": [
+      "sample",
+      "ledoit_wolf",
+      "ewma"
+    ],
+    "var_methods": [
+      "historical",
+      "parametric",
+      "monte_carlo"
+    ],
+    "cvar_methods": [
+      "historical",
+      "parametric",
+      "monte_carlo"
+    ]
+  },
+  "covariance_results": [
+    {
+      "method": "sample",
+      "matrix": [
+        [
+          8.400000000000001e-05,
+          4.1e-05,
+          2.4000000000000007e-06
+        ],
+        [
+          4.1e-05,
+          7.906666666666667e-05,
+          1.3333333333333328e-06
+        ],
+        [
+          2.4000000000000007e-06,
+          1.3333333333333328e-06,
+          1.4666666666666667e-06
+        ]
+      ],
+      "metadata": {
+        "sample_size": 6
+      }
+    },
+    {
+      "method": "ledoit_wolf",
+      "matrix": [
+        [
+          6.357308644448006e-05,
+          2.512881947921673e-05,
+          1.4709552865882968e-06
+        ],
+        [
+          2.512881947921673e-05,
+          6.0549456133159664e-05,
+          8.171973814379421e-07
+        ],
+        [
+          1.4709552865882968e-06,
+          8.171973814379421e-07,
+          1.2988568533471408e-05
+        ]
+      ],
+      "metadata": {
+        "sample_size": 6
+      }
+    },
+    {
+      "method": "ewma",
+      "matrix": [
+        [
+          2.177594250278401e-05,
+          1.0405319743488006e-05,
+          7.038091211520007e-07
+        ],
+        [
+          1.0405319743488006e-05,
+          1.9738178326016012e-05,
+          2.6907500646400006e-07
+        ],
+        [
+          7.038091211520007e-07,
+          2.6907500646400006e-07,
+          3.846369954560003e-07
+        ]
+      ],
+      "metadata": {
+        "decay_lambda": 0.94
+      }
+    }
+  ],
+  "risk_metrics": [],
+  "stress_impacts": [],
+  "visualizations": []
+}

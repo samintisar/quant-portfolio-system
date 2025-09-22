@@ -1,0 +1,356 @@
+[
+  {
+    "report_id": "risk-fe168145f7044d7d86aa6a840d3e90f7",
+    "json_path": "data/storage/reports/risk-fe168145f7044d7d86aa6a840d3e90f7.json",
+    "metrics_path": "data/storage/reports/risk-fe168145f7044d7d86aa6a840d3e90f7_metrics.parquet",
+    "generated_at": "2025-09-22T02:25:56.445030",
+    "confidence_levels": [
+      0.95,
+      0.99
+    ],
+    "horizons": [
+      1,
+      10
+    ],
+    "stress_scenarios": [
+      "macro_recession"
+    ],
+    "reports": [
+      "covariance",
+      "var",
+      "cvar",
+      "stress",
+      "visualizations"
+    ]
+  },
+  {
+    "report_id": "risk-4dcbef83b8bf4e0cb9aa3263b10940fc",
+    "json_path": "data/storage/reports/risk-4dcbef83b8bf4e0cb9aa3263b10940fc.json",
+    "metrics_path": "data/storage/reports/risk-4dcbef83b8bf4e0cb9aa3263b10940fc_metrics.parquet",
+    "generated_at": "2025-09-22T02:25:56.009559",
+    "confidence_levels": [
+      0.95
+    ],
+    "horizons": [
+      1
+    ],
+    "stress_scenarios": [
+      "macro_recession"
+    ],
+    "reports": [
+      "covariance",
+      "var",
+      "cvar",
+      "stress",
+      "visualizations"
+    ]
+  },
+  {
+    "report_id": "risk-e4fe89e039864d3687e29319156771e8",
+    "json_path": "data/storage/reports/risk-e4fe89e039864d3687e29319156771e8.json",
+    "metrics_path": "data/storage/reports/risk-e4fe89e039864d3687e29319156771e8_metrics.parquet",
+    "generated_at": "2025-09-22T02:25:45.128525",
+    "confidence_levels": [
+      0.95
+    ],
+    "horizons": [
+      1
+    ],
+    "stress_scenarios": [],
+    "reports": [
+      "var"
+    ]
+  },
+  {
+    "report_id": "risk-569c47dd067c4647ad4181865127e491",
+    "json_path": "data/storage/reports/risk-569c47dd067c4647ad4181865127e491.json",
+    "metrics_path": null,
+    "generated_at": "2025-09-22T02:25:45.100275",
+    "confidence_levels": [
+      0.95,
+      0.99
+    ],
+    "horizons": [
+      1,
+      10
+    ],
+    "stress_scenarios": [
+      "macro_recession",
+      "inflation_spike"
+    ],
+    "reports": [
+      "stress"
+    ]
+  },
+  {
+    "report_id": "risk-36d3149bf56c44c49a5adafb1a4ca413",
+    "json_path": "data/storage/reports/risk-36d3149bf56c44c49a5adafb1a4ca413.json",
+    "metrics_path": "data/storage/reports/risk-36d3149bf56c44c49a5adafb1a4ca413_metrics.parquet",
+    "generated_at": "2025-09-22T02:25:45.057655",
+    "confidence_levels": [
+      0.95
+    ],
+    "horizons": [
+      1
+    ],
+    "stress_scenarios": [],
+    "reports": [
+      "var",
+      "cvar"
+    ]
+  },
+  {
+    "report_id": "risk-5320e68d19fe45c9a9f574c3aa048242",
+    "json_path": "data/storage/reports/risk-5320e68d19fe45c9a9f574c3aa048242.json",
+    "metrics_path": null,
+    "generated_at": "2025-09-22T02:25:45.010008",
+    "confidence_levels": [
+      0.95,
+      0.99
+    ],
+    "horizons": [
+      1,
+      10
+    ],
+    "stress_scenarios": [],
+    "reports": [
+      "covariance"
+    ]
+  },
+  {
+    "report_id": "risk-3dc067785ef34ab88c3972c5b21bbd7a",
+    "json_path": "data/storage/reports/risk-3dc067785ef34ab88c3972c5b21bbd7a.json",
+    "metrics_path": "data/storage/reports/risk-3dc067785ef34ab88c3972c5b21bbd7a_metrics.parquet",
+    "generated_at": "2025-09-22T01:00:11.073631",
+    "confidence_levels": [
+      0.95,
+      0.99
+    ],
+    "horizons": [
+      1,
+      10
+    ],
+    "stress_scenarios": [
+      "macro_recession"
+    ],
+    "reports": [
+      "covariance",
+      "var",
+      "cvar",
+      "stress",
+      "visualizations"
+    ]
+  },
+  {
+    "report_id": "risk-6875e8450c20404ca1baf4daf86c21c3",
+    "json_path": "data/storage/reports/risk-6875e8450c20404ca1baf4daf86c21c3.json",
+    "metrics_path": "data/storage/reports/risk-6875e8450c20404ca1baf4daf86c21c3_metrics.parquet",
+    "generated_at": "2025-09-22T01:00:10.734305",
+    "confidence_levels": [
+      0.95
+    ],
+    "horizons": [
+      1
+    ],
+    "stress_scenarios": [
+      "macro_recession"
+    ],
+    "reports": [
+      "covariance",
+      "var",
+      "cvar",
+      "stress",
+      "visualizations"
+    ]
+  },
+  {
+    "report_id": "risk-3a3c64277bf54ef9a636b8a4708acac9",
+    "json_path": "data/storage/reports/risk-3a3c64277bf54ef9a636b8a4708acac9.json",
+    "metrics_path": "data/storage/reports/risk-3a3c64277bf54ef9a636b8a4708acac9_metrics.parquet",
+    "generated_at": "2025-09-22T00:59:58.339352",
+    "confidence_levels": [
+      0.95
+    ],
+    "horizons": [
+      1
+    ],
+    "stress_scenarios": [],
+    "reports": [
+      "var"
+    ]
+  },
+  {
+    "report_id": "risk-1fc16730855b48d7b766feb90ff19cee",
+    "json_path": "data/storage/reports/risk-1fc16730855b48d7b766feb90ff19cee.json",
+    "metrics_path": null,
+    "generated_at": "2025-09-22T00:59:58.323306",
+    "confidence_levels": [
+      0.95,
+      0.99
+    ],
+    "horizons": [
+      1,
+      10
+    ],
+    "stress_scenarios": [
+      "macro_recession",
+      "inflation_spike"
+    ],
+    "reports": [
+      "stress"
+    ]
+  },
+  {
+    "report_id": "risk-c823cb40a7844e0790540dd37b8cc1ea",
+    "json_path": "data/storage/reports/risk-c823cb40a7844e0790540dd37b8cc1ea.json",
+    "metrics_path": "data/storage/reports/risk-c823cb40a7844e0790540dd37b8cc1ea_metrics.parquet",
+    "generated_at": "2025-09-22T00:59:58.291281",
+    "confidence_levels": [
+      0.95
+    ],
+    "horizons": [
+      1
+    ],
+    "stress_scenarios": [],
+    "reports": [
+      "var",
+      "cvar"
+    ]
+  },
+  {
+    "report_id": "risk-262073c637aa4abeb2c3ae93c6246aec",
+    "json_path": "data/storage/reports/risk-262073c637aa4abeb2c3ae93c6246aec.json",
+    "metrics_path": null,
+    "generated_at": "2025-09-22T00:59:58.243577",
+    "confidence_levels": [
+      0.95,
+      0.99
+    ],
+    "horizons": [
+      1,
+      10
+    ],
+    "stress_scenarios": [],
+    "reports": [
+      "covariance"
+    ]
+  },
+  {
+    "report_id": "risk-9dac4a22055d4840a80135a83b242ec5",
+    "json_path": "data/storage/reports/risk-9dac4a22055d4840a80135a83b242ec5.json",
+    "metrics_path": "data/storage/reports/risk-9dac4a22055d4840a80135a83b242ec5_metrics.parquet",
+    "generated_at": "2025-09-21T23:12:57.208748",
+    "confidence_levels": [
+      0.95,
+      0.99
+    ],
+    "horizons": [
+      1,
+      10
+    ],
+    "stress_scenarios": [
+      "macro_recession"
+    ],
+    "reports": [
+      "covariance",
+      "var",
+      "cvar",
+      "stress",
+      "visualizations"
+    ]
+  },
+  {
+    "report_id": "risk-e76eab8803ed4093a9ef0f2fa8735215",
+    "json_path": "data/storage/reports/risk-e76eab8803ed4093a9ef0f2fa8735215.json",
+    "metrics_path": "data/storage/reports/risk-e76eab8803ed4093a9ef0f2fa8735215_metrics.parquet",
+    "generated_at": "2025-09-21T23:12:56.839829",
+    "confidence_levels": [
+      0.95
+    ],
+    "horizons": [
+      1
+    ],
+    "stress_scenarios": [
+      "macro_recession"
+    ],
+    "reports": [
+      "covariance",
+      "var",
+      "cvar",
+      "stress",
+      "visualizations"
+    ]
+  },
+  {
+    "report_id": "risk-bf058f57bb444d599a74725594ccde8b",
+    "json_path": "data/storage/reports/risk-bf058f57bb444d599a74725594ccde8b.json",
+    "metrics_path": "data/storage/reports/risk-bf058f57bb444d599a74725594ccde8b_metrics.parquet",
+    "generated_at": "2025-09-21T23:12:45.899376",
+    "confidence_levels": [
+      0.95
+    ],
+    "horizons": [
+      1
+    ],
+    "stress_scenarios": [],
+    "reports": [
+      "var"
+    ]
+  },
+  {
+    "report_id": "risk-415ad0beaeee4e7a8d9d90fb8d32c12e",
+    "json_path": "data/storage/reports/risk-415ad0beaeee4e7a8d9d90fb8d32c12e.json",
+    "metrics_path": null,
+    "generated_at": "2025-09-21T23:12:45.874295",
+    "confidence_levels": [
+      0.95,
+      0.99
+    ],
+    "horizons": [
+      1,
+      10
+    ],
+    "stress_scenarios": [
+      "macro_recession",
+      "inflation_spike"
+    ],
+    "reports": [
+      "stress"
+    ]
+  },
+  {
+    "report_id": "risk-f75aeb6dfcb742ce8411b4b661ca0a19",
+    "json_path": "data/storage/reports/risk-f75aeb6dfcb742ce8411b4b661ca0a19.json",
+    "metrics_path": "data/storage/reports/risk-f75aeb6dfcb742ce8411b4b661ca0a19_metrics.parquet",
+    "generated_at": "2025-09-21T23:12:45.840740",
+    "confidence_levels": [
+      0.95
+    ],
+    "horizons": [
+      1
+    ],
+    "stress_scenarios": [],
+    "reports": [
+      "var",
+      "cvar"
+    ]
+  },
+  {
+    "report_id": "risk-25a69d40a57449279f7d2b10d44cf130",
+    "json_path": "data/storage/reports/risk-25a69d40a57449279f7d2b10d44cf130.json",
+    "metrics_path": null,
+    "generated_at": "2025-09-21T23:12:45.798693",
+    "confidence_levels": [
+      0.95,
+      0.99
+    ],
+    "horizons": [
+      1,
+      10
+    ],
+    "stress_scenarios": [],
+    "reports": [
+      "covariance"
+    ]
+  }
+]

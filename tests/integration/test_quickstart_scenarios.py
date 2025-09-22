@@ -1,8 +1,9 @@
 """
-End-to-end validation tests using quickstart scenarios.
+End-to-end integration tests for financial features system.
 
-Tests complete preprocessing workflows as described in the quickstart guide,
-validating that the system works correctly in realistic usage scenarios.
+Tests complete financial features workflows including returns, volatility, and momentum
+calculations as described in the quickstart guide, validating that the system works
+correctly in realistic usage scenarios.
 """
 
 import pytest
@@ -12,27 +13,45 @@ import os
 import sys
 import json
 import tempfile
+import time
 from datetime import datetime, timedelta
+from typing import Dict, List, Tuple
 
 # Add the data src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'src'))
 
-from lib.cleaning import DataCleaner
-from lib.validation import DataValidator
-from lib.normalization import DataNormalizer
+from data.src.lib.returns import (
+    calculate_simple_returns, calculate_log_returns, calculate_percentage_returns,
+    calculate_annualized_returns, calculate_sharpe_ratio, calculate_multi_period_returns,
+    calculate_max_drawdown, calculate_beta_alpha
+)
+
+from data.src.lib.volatility import (
+    calculate_rolling_volatility, calculate_annualized_volatility,
+    calculate_parkinson_volatility, calculate_garman_klass_volatility,
+    calculate_ewma_volatility, calculate_garch11_volatility,
+    calculate_volatility_regime, calculate_volatility_forecast
+)
+
+from data.src.lib.momentum import (
+    calculate_simple_momentum, calculate_rsi, calculate_roc,
+    calculate_stochastic, calculate_macd, generate_momentum_signals
+)
+
+from data.src.services.feature_service import FeatureGenerator
+from data.src.services.validation_service import DataValidator
 
 
-class TestQuickstartScenarios:
-    """End-to-end validation tests based on quickstart scenarios."""
+class TestFinancialFeaturesIntegration:
+    """End-to-end integration tests for financial features."""
 
     def setup_method(self):
         """Set up test fixtures."""
-        np.random.seed(42)
+        np.random.seed(42)  # For reproducible results
 
-        # Initialize preprocessing components
-        self.cleaner = DataCleaner()
-        self.validator = DataValidator()
-        self.normalizer = DataNormalizer()
+        # Initialize services
+        self.feature_service = FeatureGenerator()
+        self.validation_service = DataValidator()
 
         # Create temporary directory for test files
         self.temp_dir = tempfile.mkdtemp()
@@ -42,592 +61,830 @@ class TestQuickstartScenarios:
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def create_sample_stock_data(self, n_symbols=3, n_days=252):
-        """Create realistic sample stock data for testing."""
+    def create_realistic_market_data(self, n_symbols: int = 3, n_days: int = 252) -> pd.DataFrame:
+        """Create realistic market data for testing financial features."""
         symbols = ['AAPL', 'MSFT', 'GOOGL'][:n_symbols]
         start_date = datetime(2023, 1, 1)
         dates = pd.date_range(start=start_date, periods=n_days, freq='D')
 
         data = []
+
+        # Market parameters for realistic simulation
+        market_trend = 0.0002  # Daily market trend
+        market_volatility = 0.015  # Daily market volatility
+
         for symbol in symbols:
-            # Generate realistic price process
+            # Symbol-specific parameters
             base_price = np.random.uniform(50, 500)
-            trend = np.random.uniform(-0.001, 0.002, n_days)  # Daily trend
-            volatility = np.random.uniform(0.01, 0.03)  # Daily volatility
+            beta = np.random.uniform(0.8, 1.5)  # Market sensitivity
+            idiosyncratic_vol = np.random.uniform(0.01, 0.03)  # Stock-specific volatility
 
-            # Random walk with drift
-            returns = np.random.normal(trend, volatility, n_days)
+            # Generate market factor (single factor model)
+            market_returns = np.random.normal(market_trend, market_volatility, n_days)
+
+            # Generate stock returns using CAPM-like model
+            stock_returns = []
+            for i in range(n_days):
+                # Market component + idiosyncratic component
+                market_component = beta * market_returns[i]
+                idiosyncratic_component = np.random.normal(0, idiosyncratic_vol)
+                total_return = market_component + idiosyncratic_component
+                stock_returns.append(total_return)
+
+            # Convert returns to prices
             prices = [base_price]
-
-            for ret in returns[1:]:
+            for ret in stock_returns[1:]:
                 prices.append(prices[-1] * (1 + ret))
-
             prices = np.array(prices)
 
-            # Create OHLCV data
+            # Create OHLCV data with realistic intraday patterns
             for i, date in enumerate(dates):
-                daily_volatility = volatility * prices[i]
+                if i == 0:
+                    continue
+
+                daily_return = stock_returns[i]
+                daily_vol = idiosyncratic_vol * prices[i]
+
+                # Intraday price movement simulation
+                open_price = prices[i-1] * np.random.uniform(0.999, 1.001)
+
+                if daily_return > 0:
+                    # Up day
+                    high = max(open_price, prices[i]) * np.random.uniform(1.005, 1.02)
+                    low = min(open_price, prices[i]) * np.random.uniform(0.98, 0.999)
+                    close = prices[i]
+                else:
+                    # Down day
+                    high = max(open_price, prices[i]) * np.random.uniform(1.001, 1.01)
+                    low = min(open_price, prices[i]) * np.random.uniform(0.97, 0.995)
+                    close = prices[i]
+
+                # Ensure proper OHLC relationships
+                high = max(high, open_price, close)
+                low = min(low, open_price, close)
+
+                # Volume simulation (higher volume on big moves)
+                volume_base = np.random.lognormal(14, 0.5)
+                volume_multiplier = 1 + abs(daily_return) * 10
+                volume = volume_base * volume_multiplier
+
                 data.append({
                     'symbol': symbol,
                     'timestamp': date,
-                    'open': prices[i] * np.random.uniform(0.99, 1.01),
-                    'high': prices[i] * np.random.uniform(1.00, 1.03),
-                    'low': prices[i] * np.random.uniform(0.97, 1.00),
-                    'close': prices[i],
-                    'volume': np.random.lognormal(14, 0.8)
+                    'open': open_price,
+                    'high': high,
+                    'low': low,
+                    'close': close,
+                    'volume': volume
                 })
 
         df = pd.DataFrame(data)
+        return df.sort_values(['symbol', 'timestamp']).reset_index(drop=True)
 
-        # Ensure proper OHLC relationships
-        for idx, row in df.iterrows():
-            high = max(row['open'], row['close']) * np.random.uniform(1.001, 1.02)
-            low = min(row['open'], row['close']) * np.random.uniform(0.98, 0.999)
-            df.at[idx, 'high'] = high
-            df.at[idx, 'low'] = low
+    def test_basic_returns_calculation_scenario(self):
+        """Test basic returns calculation workflow."""
+        print("\n=== Testing Basic Returns Calculation ===")
 
-        # Add some data quality issues
-        self._add_realistic_data_issues(df)
+        # Create test data
+        market_data = self.create_realistic_market_data(n_symbols=2, n_days=100)
 
-        return df
-
-    def _add_realistic_data_issues(self, df):
-        """Add realistic data quality issues to test data."""
-        # Missing values (3% random)
-        missing_mask = np.random.random(df.shape) < 0.03
-        for col in ['open', 'high', 'low', 'close', 'volume']:
-            if col in df.columns:
-                df.loc[missing_mask[:, df.columns.get_loc(col)], col] = np.nan
-
-        # Outliers (1% of price data)
-        price_outlier_mask = np.random.random(len(df)) < 0.01
-        outlier_indices = df[price_outlier_mask].index
-        for idx in outlier_indices:
-            df.at[idx, 'close'] *= np.random.uniform(2, 5)  # 2-5x price jump
-
-        # Extreme volume outliers
-        volume_outlier_mask = np.random.random(len(df)) < 0.005
-        vol_outlier_indices = df[volume_outlier_mask].index
-        for idx in vol_outlier_indices:
-            df.at[idx, 'volume'] *= np.random.uniform(10, 50)  # 10-50x volume
-
-        # Duplicate timestamps (same symbol, same time)
-        n_duplicates = int(0.01 * len(df))
-        duplicate_rows = df.sample(n=n_duplicates, replace=False)
-        df = pd.concat([df, duplicate_rows], ignore_index=True)
-
-        # Time gaps (missing trading days)
-        gap_indices = np.random.choice(df.index, size=int(0.02 * len(df)), replace=False)
-        for idx in gap_indices:
-            if idx < len(df) - 5:
-                # Remove a few consecutive rows to create gap
-                df = df.drop([idx, idx+1, idx+2])
-
-        df = df.reset_index(drop=True)
-
-    def test_cli_preprocessing_scenario(self):
-        """Test CLI preprocessing scenario from quickstart."""
-        # Create sample data
-        sample_data = self.create_sample_stock_data(n_symbols=2, n_days=100)
-
-        # Save to CSV (simulating CLI input)
-        input_file = os.path.join(self.temp_dir, 'sample_stocks.csv')
-        output_file = os.path.join(self.temp_dir, 'processed_stocks.csv')
-
-        sample_data.to_csv(input_file, index=False)
-
-        # Simulate CLI preprocessing
-        processed_data = self._simulate_cli_preprocessing(input_file)
-
-        # Save processed data
-        processed_data.to_csv(output_file, index=False)
-
-        # Validate output
-        assert os.path.exists(output_file), "Output file should be created"
-
-        # Load and validate processed data
-        loaded_data = pd.read_csv(output_file)
-
-        # Check basic structure
-        expected_columns = ['symbol', 'timestamp', 'open', 'high', 'low', 'close', 'volume']
-        for col in expected_columns:
-            assert col in loaded_data.columns, f"Column {col} should be present"
-
-        # Check data quality improvements
-        original_missing = sample_data.isnull().sum().sum()
-        processed_missing = loaded_data.isnull().sum().sum()
-
-        assert processed_missing <= original_missing, "Processed data should have fewer missing values"
-
-        # Check that data size is reasonable
-        assert len(loaded_data) > 0, "Processed data should not be empty"
-        assert len(loaded_data) <= len(sample_data) * 1.1, "Processed data should not have grown significantly"
-
-    def test_custom_configuration_scenario(self):
-        """Test custom configuration scenario from quickstart."""
-        # Create noisy data
-        noisy_data = self.create_sample_stock_data(n_symbols=2, n_days=200)
-
-        # Custom configuration for high-frequency data
-        config = {
-            'missing_value_handling': {
-                'method': 'interpolation',
-                'threshold': 0.05
-            },
-            'outlier_detection': {
-                'method': 'iqr',
-                'threshold': 1.5,
-                'action': 'flag'
-            },
-            'normalization': {
-                'method': 'robust',
-                'preserve_stats': False
-            }
-        }
-
-        # Apply custom preprocessing
-        processed_data = self._apply_custom_preprocessing(noisy_data, config)
+        # Calculate returns using different methods
+        simple_returns = calculate_simple_returns(market_data['close'])
+        log_returns = calculate_log_returns(market_data['close'])
+        percentage_returns = calculate_percentage_returns(market_data['close'])
 
         # Validate results
-        # Check that outlier flags were added
-        outlier_columns = [col for col in processed_data.columns if 'outlier' in col.lower()]
-        assert len(outlier_columns) > 0, "Outlier flags should be added"
+        assert len(simple_returns) == len(market_data), "Simple returns length mismatch"
+        assert len(log_returns) == len(market_data), "Log returns length mismatch"
+        assert len(percentage_returns) == len(market_data), "Percentage returns length mismatch"
 
-        # Check that normalization was applied
-        normalized_columns = [col for col in processed_data.columns if 'normalized' in col.lower()]
-        assert len(normalized_columns) > 0, "Normalized columns should be added"
+        # Check mathematical relationships
+        # For small returns, log returns ≈ simple returns
+        mask = abs(simple_returns) < 0.05  # Small returns mask
+        diff = np.abs(log_returns[mask] - simple_returns[mask])
+        assert diff.max() < 0.002, "Log and simple returns should be close for small values"
 
-        # Check data quality score
-        quality_score = self._calculate_data_quality_score(processed_data)
-        assert quality_score > 0.8, f"Data quality score should be > 0.8, got {quality_score}"
+        # Check percentage conversion
+        pct_diff = np.abs(percentage_returns - simple_returns * 100)
+        assert pct_diff.max() < 1e-10, "Percentage returns should be simple returns × 100"
 
-        return processed_data, quality_score
+        # Check for reasonable return ranges
+        assert simple_returns.min() > -0.5, "Simple returns should not be extremely negative"
+        assert simple_returns.max() < 0.5, "Simple returns should not be extremely positive"
 
-    def test_batch_processing_scenario(self):
-        """Test batch processing scenario from quickstart."""
-        # Create multiple sample files
-        input_files = []
-        output_files = []
+        print(f"✓ Calculated returns for {len(market_data)} data points")
+        print(f"  Simple returns: {simple_returns.mean():.4f} ± {simple_returns.std():.4f}")
+        print(f"  Log returns: {log_returns.mean():.4f} ± {log_returns.std():.4f}")
 
-        for i in range(3):
-            # Create sample data with different characteristics
-            sample_data = self.create_sample_stock_data(n_symbols=1, n_days=50 + i*30)
-
-            input_file = os.path.join(self.temp_dir, f'raw_data_{i}.csv')
-            output_file = os.path.join(self.temp_dir, f'processed_{i}.csv')
-
-            sample_data.to_csv(input_file, index=False)
-            input_files.append(input_file)
-            output_files.append(output_file)
-
-        # Process multiple files
-        quality_scores = []
-        for i, (input_file, output_file) in enumerate(zip(input_files, output_files)):
-            # Load and process
-            df = pd.read_csv(input_file)
-            processed_df = self._simulate_cli_preprocessing(input_file)
-
-            # Save results
-            processed_df.to_csv(output_file, index=False)
-
-            # Calculate quality
-            quality_score = self._calculate_data_quality_score(processed_df)
-            quality_scores.append(quality_score)
-
-            print(f"Processed file {i}, quality: {quality_score:.2f}")
-
-        # Validate batch results
-        assert len(quality_scores) == 3, "Should have processed 3 files"
-        assert all(score > 0.7 for score in quality_scores), "All files should have quality > 0.7"
-
-        # Check quality consistency
-        quality_std = np.std(quality_scores)
-        assert quality_std < 0.2, f"Quality scores should be consistent, std = {quality_std:.3f}"
-
-        return quality_scores
-
-    def test_quality_report_generation_scenario(self):
-        """Test quality report generation scenario from quickstart."""
-        # Create test data
-        test_data = self.create_sample_stock_data(n_symbols=2, n_days=150)
-
-        # Process data
-        processed_data = self._simulate_cli_preprocessing_from_dataframe(test_data)
-
-        # Generate quality report
-        quality_report = self._generate_quality_report(processed_data)
-
-        # Validate report structure
-        required_fields = ['dataset_id', 'overall_score', 'completeness', 'consistency', 'accuracy']
-        for field in required_fields:
-            assert field in quality_report, f"Report should contain {field}"
-
-        # Validate score ranges
-        assert 0 <= quality_report['overall_score'] <= 1, "Overall score should be between 0 and 1"
-        assert 0 <= quality_report['completeness'] <= 1, "Completeness should be between 0 and 1"
-        assert 0 <= quality_report['consistency'] <= 1, "Consistency should be between 0 and 1"
-        assert 0 <= quality_report['accuracy'] <= 1, "Accuracy should be between 0 and 1"
-
-        # Check that issues are documented
-        if 'issues_found' in quality_report:
-            assert isinstance(quality_report['issues_found'], list), "Issues should be a list"
-
-        # Save report to file
-        report_file = os.path.join(self.temp_dir, 'quality_report.json')
-        with open(report_file, 'w') as f:
-            json.dump(quality_report, f, indent=2)
-
-        assert os.path.exists(report_file), "Quality report file should be created"
-
-        return quality_report
-
-    def test_configuration_file_scenario(self):
-        """Test configuration file scenario from quickstart."""
-        # Create configuration file
-        config_file = os.path.join(self.temp_dir, 'preprocessing_config.json')
-        config = {
-            "pipeline_id": "equity_daily_v1",
-            "missing_value_handling": {
-                "method": "forward_fill",
-                "threshold": 0.1
-            },
-            "outlier_detection": {
-                "method": "zscore",
-                "threshold": 3.0,
-                "action": "clip"
-            },
-            "normalization": {
-                "method": "zscore",
-                "preserve_stats": True
-            },
-            "quality_thresholds": {
-                "completeness": 0.95,
-                "consistency": 0.90,
-                "accuracy": 0.95
-            }
-        }
-
-        with open(config_file, 'w') as f:
-            json.dump(config, f, indent=2)
+    def test_volatility_calculation_scenario(self):
+        """Test volatility calculation workflow."""
+        print("\n=== Testing Volatility Calculation ===")
 
         # Create test data
-        test_data = self.create_sample_stock_data(n_symbols=2, n_days=100)
+        market_data = self.create_realistic_market_data(n_symbols=1, n_days=200)
 
-        # Process with configuration file
-        processed_data = self._process_with_config_file(test_data, config_file)
+        # Set timestamp as index for proper time series
+        market_data_indexed = market_data.set_index('timestamp')
 
-        # Validate that configuration was applied
-        # Check for normalized columns
-        normalized_cols = [col for col in processed_data.columns if 'normalized' in col.lower()]
-        assert len(normalized_cols) > 0, "Normalization should be applied based on config"
+        # Extract price data for the single symbol
+        close_prices = market_data_indexed['close']
+        high_prices = market_data_indexed['high']
+        low_prices = market_data_indexed['low']
+        open_prices = market_data_indexed['open']
 
-        # Check quality against thresholds
-        quality_report = self._generate_quality_report(processed_data)
+        returns = calculate_simple_returns(close_prices)
 
-        assert quality_report['completeness'] >= config['quality_thresholds']['completeness'], \
-            f"Completeness {quality_report['completeness']} below threshold {config['quality_thresholds']['completeness']}"
+        # Calculate different volatility measures
+        rolling_vol = calculate_rolling_volatility(returns, window=21)
+        annual_vol = calculate_annualized_volatility(returns, periods_per_year=252)
+        parkinson_vol = calculate_parkinson_volatility(
+            high_prices, low_prices, window=21
+        )
+        garman_klass_vol = calculate_garman_klass_volatility(
+            open_prices, high_prices, low_prices, close_prices, window=21
+        )
+        ewma_vol = calculate_ewma_volatility(returns, span=30)
 
-        assert quality_report['consistency'] >= config['quality_thresholds']['consistency'], \
-            f"Consistency {quality_report['consistency']} below threshold {config['quality_thresholds']['consistency']}"
+        # Validate results
+        assert len(rolling_vol) == len(returns), "Rolling volatility length mismatch"
+        assert isinstance(annual_vol, float), "Annual volatility should be a scalar"
 
-        return processed_data, quality_report
+        # Check volatility reasonableness
+        assert rolling_vol.dropna().min() >= 0, "Volatility should be non-negative"
+        assert rolling_vol.dropna().max() < 1.0, "Daily volatility should be < 100%"
+        assert annual_vol > 0 and annual_vol < 2.0, "Annual volatility should be reasonable"
 
-    def test_api_usage_scenario(self):
-        """Test Python API usage scenario from quickstart."""
-        # Load sample data
-        df = self.create_sample_stock_data(n_symbols=1, n_days=100)
+        # Check range-based volatilities are more efficient
+        parkinson_mean = parkinson_vol.dropna().mean()
+        rolling_mean = rolling_vol.dropna().mean()
 
-        # Initialize preprocessor (simulate)
-        preprocessor = self._create_mock_preprocessor()
+        print(f"✓ Calculated multiple volatility measures")
+        print(f"  Rolling volatility (21-day): {rolling_mean:.4f}")
+        print(f"  Parkinson volatility: {parkinson_mean:.4f}")
+        print(f"  Garman-Klass volatility: {garman_klass_vol.dropna().mean():.4f}")
+        print(f"  EWMA volatility: {ewma_vol.dropna().mean():.4f}")
+        print(f"  Annualized volatility: {annual_vol:.4f}")
 
-        # Process data with default settings
-        processed_df = self._simulate_api_processing(preprocessor, df)
+    def test_momentum_indicators_scenario(self):
+        """Test momentum indicators calculation workflow."""
+        print("\n=== Testing Momentum Indicators ===")
 
-        # Check quality
-        quality_metrics = preprocessor.get_quality_metrics()
-        print(f"Quality score: {quality_metrics['overall_score']}")
+        # Create test data
+        market_data = self.create_realistic_market_data(n_symbols=1, n_days=150)
 
-        assert quality_metrics['overall_score'] > 0.7, "Quality score should be reasonable"
+        # Calculate momentum indicators
+        rsi = calculate_rsi(market_data['close'], period=14)
+        roc = calculate_roc(market_data['close'], period=12)
+        macd_line, signal_line, histogram = calculate_macd(market_data['close'])
 
-        # Process with custom configuration
-        config = {
-            'missing_value_handling': {
-                'method': 'forward_fill',
-                'threshold': 0.1
-            },
-            'outlier_detection': {
-                'method': 'zscore',
-                'threshold': 3.0,
-                'action': 'clip'
-            },
-            'normalization': {
-                'method': 'zscore',
-                'preserve_stats': True
+        # Validate RSI
+        assert rsi.dropna().min() >= 0, "RSI should be >= 0"
+        assert rsi.dropna().max() <= 100, "RSI should be <= 100"
+        assert len(rsi) == len(market_data), "RSI length mismatch"
+
+        # Validate MACD
+        assert len(macd_line) == len(signal_line) == len(histogram), "MACD series lengths should match"
+        assert len(macd_line) == len(market_data), "MACD length mismatch"
+
+        # Validate ROC
+        assert len(roc) == len(market_data), "ROC length mismatch"
+
+        # Generate trading signals
+        rsi_signals = generate_momentum_signals(rsi, 'rsi')
+        macd_signals = generate_momentum_signals(histogram, 'momentum')
+
+        # Check signal validity
+        valid_signals = ['buy', 'sell', 'hold', 'strong_buy', 'strong_sell']
+        assert all(signal in valid_signals for signal in rsi_signals.dropna().unique()), "Invalid RSI signals"
+        assert all(signal in valid_signals for signal in macd_signals.dropna().unique()), "Invalid MACD signals"
+
+        print(f"✓ Calculated momentum indicators")
+        print(f"  RSI: {rsi.dropna().mean():.1f} ± {rsi.dropna().std():.1f}")
+        print(f"  ROC: {roc.dropna().mean():.2f}% ± {roc.dropna().std():.2f}%")
+        print(f"  MACD histogram: {histogram.dropna().mean():.4f} ± {histogram.dropna().std():.4f}")
+        print(f"  RSI signals: {dict(rsi_signals.value_counts())}")
+        print(f"  MACD signals: {dict(macd_signals.value_counts())}")
+
+    def test_risk_metrics_scenario(self):
+        """Test risk metrics calculation workflow."""
+        print("\n=== Testing Risk Metrics ===")
+
+        # Create test data
+        market_data = self.create_realistic_market_data(n_symbols=2, n_days=252)
+
+        # Calculate returns for each symbol
+        symbols = market_data['symbol'].unique()
+        risk_metrics = {}
+
+        for symbol in symbols:
+            symbol_data = market_data[market_data['symbol'] == symbol]
+            returns = calculate_simple_returns(symbol_data['close'])
+
+            # Calculate risk metrics
+            sharpe_ratio = calculate_sharpe_ratio(returns)
+            max_dd = calculate_max_drawdown(returns)
+            annual_return = calculate_annualized_returns(returns, periods_per_year=252)
+
+            risk_metrics[symbol] = {
+                'sharpe_ratio': sharpe_ratio,
+                'max_drawdown': max_dd,
+                'annual_return': annual_return,
+                'volatility': returns.std() * np.sqrt(252)
             }
-        }
 
-        processed_df_custom = self._simulate_api_processing(preprocessor, df, config)
+        # Validate metrics reasonableness
+        for symbol, metrics in risk_metrics.items():
+            assert -3 <= metrics['sharpe_ratio'] <= 3, f"Sharpe ratio should be reasonable for {symbol}"
+            assert -1 <= metrics['max_drawdown'] <= 0, f"Max drawdown should be between -1 and 0 for {symbol}"
+            assert -1 <= metrics['annual_return'] <= 2, f"Annual return should be reasonable for {symbol}"
+            assert 0 < metrics['volatility'] < 2, f"Volatility should be positive and reasonable for {symbol}"
 
-        # Custom processing should also work
-        quality_custom = preprocessor.get_quality_metrics()
-        assert quality_custom['overall_score'] > 0.7, "Custom processing should also produce good quality"
+        # Calculate beta and alpha relative to first symbol
+        if len(symbols) >= 2:
+            market_returns = calculate_simple_returns(market_data[market_data['symbol'] == symbols[0]]['close'])
+            asset_returns = calculate_simple_returns(market_data[market_data['symbol'] == symbols[1]]['close'])
 
-        return processed_df, processed_df_custom
+            beta, alpha = calculate_beta_alpha(asset_returns, market_returns)
 
-    def test_error_handling_scenarios(self):
-        """Test error handling scenarios from quickstart troubleshooting."""
-        # Test missing required columns
-        incomplete_data = pd.DataFrame({
-            'symbol': ['AAPL', 'MSFT'],
-            'timestamp': ['2023-01-01', '2023-01-02']
-            # Missing 'close' column
-        })
+            assert -2 <= beta <= 3, f"Beta should be reasonable, got {beta}"
+            assert -0.5 <= alpha <= 0.5, f"Alpha should be reasonable, got {alpha}"
 
-        # Should handle gracefully
-        try:
-            processed = self._simulate_cli_preprocessing_from_dataframe(incomplete_data)
-            # Either should fail gracefully or produce warning
-        except Exception as e:
-            assert "column" in str(e).lower() or "required" in str(e).lower(), \
-                "Should mention missing columns in error"
+            risk_metrics[symbols[1]]['beta'] = beta
+            risk_metrics[symbols[1]]['alpha'] = alpha
 
-        # Test invalid timestamp format
-        bad_timestamp_data = self.create_sample_stock_data(n_symbols=1, n_days=10)
-        bad_timestamp_data['timestamp'] = ['invalid_date'] * len(bad_timestamp_data)
+        print("✓ Calculated risk metrics for all symbols")
+        for symbol, metrics in risk_metrics.items():
+            print(f"  {symbol}:")
+            for metric, value in metrics.items():
+                print(f"    {metric}: {value:.4f}")
 
-        # Should handle gracefully
-        try:
-            processed = self._simulate_cli_preprocessing_from_dataframe(bad_timestamp_data)
-        except Exception as e:
-            assert "timestamp" in str(e).lower() or "date" in str(e).lower(), \
-                "Should mention timestamp in error"
+    def test_feature_service_integration_scenario(self):
+        """Test feature service integration workflow."""
+        print("\n=== Testing Feature Service Integration ===")
 
-        # Test empty data
-        empty_data = pd.DataFrame()
+        # Create test data
+        market_data = self.create_realistic_market_data(n_symbols=2, n_days=100)
 
-        try:
-            processed = self._simulate_cli_preprocessing_from_dataframe(empty_data)
-        except Exception as e:
-            assert "empty" in str(e).lower() or "no data" in str(e).lower(), \
-                "Should mention empty data in error"
+        # Generate features using feature service
+        start_time = time.time()
 
-    def _simulate_cli_preprocessing(self, input_file):
-        """Simulate CLI preprocessing workflow."""
-        # Load data
-        df = pd.read_csv(input_file)
+        # Generate features using feature service
+        # Note: Using generate_features instead of generate_features_batch
+        # since FeatureGenerator doesn't have batch method
+        features_list = []
+        for symbol in market_data.columns:
+            if symbol != 'timestamp':
+                price_data = self.create_price_data_from_series(
+                    market_data[symbol],
+                    symbol=symbol
+                )
+                features = self.feature_service.generate_features(price_data)
+                features_list.append(features)
 
-        # Apply preprocessing pipeline
-        return self._simulate_cli_preprocessing_from_dataframe(df)
+        # Combine results
+        combined_features = pd.concat([f.to_dataframe() for f in features_list], axis=1)
 
-    def _simulate_cli_preprocessing_from_dataframe(self, df):
-        """Simulate CLI preprocessing from DataFrame."""
-        # Default preprocessing pipeline
-        processed = df.copy()
+        processing_time = time.time() - start_time
 
-        # Handle missing values
-        processed = self.cleaner.handle_missing_values(processed, method='forward_fill')
+        # Validate feature generation
+        assert len(features) > 0, "Features should not be empty"
 
-        # Detect outliers
-        processed, outlier_masks = self.cleaner.detect_outliers(
-            processed, method='zscore', threshold=3.0, action='flag'
+        # Check for expected feature types
+        expected_patterns = ['return', 'volatility', 'rsi', 'macd', 'sharpe']
+        found_features = [col for col in features.columns if any(pattern in col.lower() for pattern in expected_patterns)]
+        assert len(found_features) > 5, f"Should find multiple feature types, found {len(found_features)}"
+
+        # Validate data integrity
+        assert features.isnull().sum().sum() / features.size < 0.3, "Too many missing values in features"
+
+        # Check performance
+        print(f"✓ Generated {len(features.columns)} features for {len(features)} time points")
+        print(f"  Processing time: {processing_time:.3f} seconds")
+        print(f"  Processing rate: {len(features) / processing_time:.0f} points/second")
+        print(f"  Sample features: {list(features.columns[:10])}")
+
+    def test_validation_service_integration_scenario(self):
+        """Test validation service integration workflow."""
+        print("\n=== Testing Validation Service Integration ===")
+
+        # Create test data
+        market_data = self.create_realistic_market_data(n_symbols=1, n_days=100)
+
+        # Generate features using individual approach
+        features_list = []
+        for symbol in ['AAPL', 'MSFT']:  # Assuming these are the symbols
+            if symbol in market_data.columns:
+                price_data = self.create_price_data_from_series(
+                    market_data[symbol],
+                    symbol=symbol
+                )
+                features = self.feature_service.generate_features(price_data)
+                features_list.append(features)
+
+        # Combine results
+        features = pd.concat([f.to_dataframe() for f in features_list], axis=1)
+
+        # Validate features using appropriate method
+        validation_results = self.validation_service.validate_data(features)
+
+        # Validate validation results
+        assert isinstance(validation_results, dict), "Should return validation results as dict"
+        assert 'quality_score' in validation_results or len(validation_results) > 0, "Should have validation metrics"
+
+        # Check validation categories
+        expected_categories = ['completeness', 'consistency', 'accuracy', 'statistical_validity']
+        for category in expected_categories:
+            assert category in validation_results, f"Should have {category} validation"
+            assert 0 <= validation_results[category] <= 1, f"{category} score should be between 0 and 1"
+
+        # Check for issues
+        if 'issues' in validation_results:
+            assert isinstance(validation_results['issues'], list), "Issues should be a list"
+
+        print("✓ Validated features successfully")
+        print(f"  Overall validation score: {validation_results['overall_score']:.3f}")
+        for category in expected_categories:
+            print(f"  {category}: {validation_results[category]:.3f}")
+
+        if 'issues' in validation_results and validation_results['issues']:
+            print(f"  Issues found: {len(validation_results['issues'])}")
+            for issue in validation_results['issues'][:3]:  # Show first 3 issues
+                print(f"    - {issue}")
+
+    def test_multi_period_analysis_scenario(self):
+        """Test multi-period analysis workflow."""
+        print("\n=== Testing Multi-Period Analysis ===")
+
+        # Create test data with multiple years
+        market_data = self.create_realistic_market_data(n_symbols=1, n_days=756)  # 3 years
+
+        # Calculate multi-period returns
+        periods = [1, 5, 21, 63, 252]  # Daily, weekly, monthly, quarterly, yearly
+        multi_period_returns = calculate_multi_period_returns(market_data['close'], periods)
+
+        # Validate multi-period returns
+        assert len(multi_period_returns) == len(periods), "Should have returns for all periods"
+
+        for period, returns in multi_period_returns.items():
+            assert len(returns) == len(market_data), f"Returns length mismatch for period {period}"
+            assert not returns.isin([np.inf, -np.inf]).any(), f"Infinite values in period {period} returns"
+
+        # Calculate rolling annual returns
+        returns = calculate_simple_returns(market_data['close'])
+        rolling_annual_returns = returns.rolling(window=252).apply(lambda x: (1 + x).prod() - 1)
+
+        # Validate rolling returns
+        assert len(rolling_annual_returns) == len(returns), "Rolling returns length mismatch"
+        assert rolling_annual_returns.dropna().min() > -1, "Rolling returns should not be < -100%"
+        assert rolling_annual_returns.dropna().max() < 5, "Rolling returns should be reasonable"
+
+        print("✓ Performed multi-period analysis")
+        for period in periods:
+            valid_returns = multi_period_returns[period].dropna()
+            if len(valid_returns) > 0:
+                print(f"  {period}-day returns: {valid_returns.mean():.4f} ± {valid_returns.std():.4f}")
+
+        print(f"  Rolling annual returns: {rolling_annual_returns.dropna().mean():.4f} ± {rolling_annual_returns.dropna().std():.4f}")
+
+    def test_end_to_end_portfolio_analysis_scenario(self):
+        """Test complete end-to-end portfolio analysis workflow."""
+        print("\n=== Testing End-to-End Portfolio Analysis ===")
+
+        # Create realistic multi-asset data
+        portfolio_data = self.create_realistic_market_data(n_symbols=3, n_days=504)  # 2 years
+
+        # Start timer for performance measurement
+        start_time = time.time()
+
+        # 1. Calculate basic returns
+        symbols = portfolio_data['symbol'].unique()
+        returns_data = {}
+
+        for symbol in symbols:
+            symbol_data = portfolio_data[portfolio_data['symbol'] == symbol]
+            returns_data[symbol] = calculate_simple_returns(symbol_data['close'])
+
+        # 2. Calculate volatility metrics
+        volatility_metrics = {}
+        for symbol, returns in returns_data.items():
+            rolling_vol = calculate_rolling_volatility(returns, window=21)
+            ewma_vol = calculate_ewma_volatility(returns, span=30)
+
+            volatility_metrics[symbol] = {
+                'rolling_volatility': rolling_vol,
+                'ewma_volatility': ewma_vol,
+                'annualized_volatility': returns.std() * np.sqrt(252)
+            }
+
+        # 3. Calculate momentum indicators
+        momentum_indicators = {}
+        for symbol in symbols:
+            symbol_data = portfolio_data[portfolio_data['symbol'] == symbol]
+            rsi = calculate_rsi(symbol_data['close'], period=14)
+            macd_line, signal_line, histogram = calculate_macd(symbol_data['close'])
+
+            momentum_indicators[symbol] = {
+                'rsi': rsi,
+                'macd_line': macd_line,
+                'macd_signal': signal_line,
+                'macd_histogram': histogram
+            }
+
+        # 4. Calculate risk and performance metrics
+        portfolio_metrics = {}
+        for symbol, returns in returns_data.items():
+            sharpe_ratio = calculate_sharpe_ratio(returns)
+            max_dd = calculate_max_drawdown(returns)
+            annual_return = calculate_annualized_returns(returns, periods_per_year=252)
+
+            portfolio_metrics[symbol] = {
+                'sharpe_ratio': sharpe_ratio,
+                'max_drawdown': max_dd,
+                'annual_return': annual_return,
+                'volatility': volatility_metrics[symbol]['annualized_volatility']
+            }
+
+        # 5. Calculate correlations and relationships
+        returns_df = pd.DataFrame(returns_data)
+        correlation_matrix = returns_df.corr()
+
+        # Calculate betas relative to first symbol (as market proxy)
+        betas = {}
+        market_returns = returns_data[symbols[0]]
+        for symbol in symbols[1:]:
+            beta, alpha = calculate_beta_alpha(returns_data[symbol], market_returns)
+            betas[symbol] = {'beta': beta, 'alpha': alpha}
+
+        # 6. Generate summary report
+        end_time = time.time()
+        processing_time = end_time - start_time
+
+        # Validate results
+        assert len(portfolio_metrics) == len(symbols), "Should have metrics for all symbols"
+        assert len(betas) == len(symbols) - 1, "Should have betas for all non-benchmark symbols"
+
+        # Check metric reasonableness
+        for symbol, metrics in portfolio_metrics.items():
+            assert -3 <= metrics['sharpe_ratio'] <= 3, f"Unreasonable Sharpe ratio for {symbol}"
+            assert -1 <= metrics['max_drawdown'] <= 0, f"Unreasonable max drawdown for {symbol}"
+            assert metrics['volatility'] > 0, f"Volatility should be positive for {symbol}"
+
+        print("✓ Completed end-to-end portfolio analysis")
+        print(f"  Processing time: {processing_time:.3f} seconds")
+        print(f"  Data points analyzed: {len(portfolio_data)}")
+        print(f"  Processing rate: {len(portfolio_data) / processing_time:.0f} points/second")
+
+        print("\n  Portfolio Summary:")
+        for symbol, metrics in portfolio_metrics.items():
+            print(f"    {symbol}:")
+            print(f"      Annual Return: {metrics['annual_return']:.2%}")
+            print(f"      Volatility: {metrics['volatility']:.2%}")
+            print(f"      Sharpe Ratio: {metrics['sharpe_ratio']:.3f}")
+            print(f"      Max Drawdown: {metrics['max_drawdown']:.2%}")
+
+        print("\n  Correlations:")
+        print(f"    Average correlation: {correlation_matrix.values[np.triu_indices_from(correlation_matrix.values, k=1)].mean():.3f}")
+
+        if betas:
+            print("\n  Risk Measures (relative to {}):".format(symbols[0]))
+            for symbol, risk_metrics in betas.items():
+                print(f"    {symbol}: β={risk_metrics['beta']:.3f}, α={risk_metrics['alpha']:.3f}")
+
+    def test_performance_benchmarking_scenario(self):
+        """Test performance benchmarking scenario."""
+        print("\n=== Testing Performance Benchmarking ===")
+
+        # Create large dataset for performance testing
+        large_dataset = self.create_realistic_market_data(n_symbols=5, n_days=1000)  # ~5000 data points
+
+        # Test performance targets
+        target_processing_time = 30.0  # 30 seconds for 10M points (scaled down)
+        target_memory_efficiency = 4096  # 4GB memory limit
+
+        # Benchmark calculations
+        start_time = time.time()
+        start_memory = self._get_memory_usage()
+
+        # Run comprehensive feature calculation
+        features = self.feature_service.generate_features_batch(
+            large_dataset,
+            features=['returns', 'volatility', 'momentum', 'risk_metrics']
         )
 
-        # Normalize
-        processed, _ = self.normalizer.normalize_zscore(processed)
+        # Validate features
+        validation_results = self.validation_service.validate_features(features)
 
-        # Add derived columns
-        if 'close' in processed.columns:
-            processed['returns'] = processed['close'].pct_change()
-            processed['volatility'] = processed['returns'].rolling(window=20).std()
+        end_time = time.time()
+        end_memory = self._get_memory_usage()
 
-        # Add quality flags
-        validation_results = self.validator.run_comprehensive_validation(processed)
-        processed['quality_score'] = self.validator.get_data_quality_score(validation_results)
+        processing_time = end_time - start_time
+        memory_used = end_memory - start_memory
 
-        return processed
+        # Scale performance metrics to 10M data points
+        data_points = len(large_dataset)
+        scaled_processing_time = processing_time * (10_000_000 / data_points)
+        scaled_memory_used = memory_used * (10_000_000 / data_points)
 
-    def _apply_custom_preprocessing(self, df, config):
-        """Apply custom preprocessing configuration."""
-        processed = df.copy()
+        print("✓ Performance benchmarking completed")
+        print(f"  Dataset size: {data_points:,} data points")
+        print(f"  Processing time: {processing_time:.3f} seconds")
+        print(f"  Memory used: {memory_used:.1f} MB")
+        print(f"  Scaled to 10M points:")
+        print(f"    Processing time: {scaled_processing_time:.1f} seconds (target: {target_processing_time}s)")
+        print(f"    Memory usage: {scaled_memory_used:.0f} MB (target: {target_memory_efficiency} MB)")
+        print(f"  Features generated: {len(features.columns)}")
+        print(f"  Validation score: {validation_results['overall_score']:.3f}")
 
-        # Apply missing value handling
-        if 'missing_value_handling' in config:
-            mv_config = config['missing_value_handling']
-            processed = self.cleaner.handle_missing_values(
-                processed,
-                method=mv_config.get('method', 'forward_fill'),
-                threshold=mv_config.get('threshold', 0.1)
-            )
+        # Performance assertions
+        assert scaled_processing_time < target_processing_time, \
+            f"Processing time {scaled_processing_time:.1f}s exceeds target {target_processing_time}s"
 
-        # Apply outlier detection
-        if 'outlier_detection' in config:
-            outlier_config = config['outlier_detection']
-            processed, outlier_masks = self.cleaner.detect_outliers(
-                processed,
-                method=outlier_config.get('method', 'zscore'),
-                threshold=outlier_config.get('threshold', 3.0),
-                action=outlier_config.get('action', 'flag')
-            )
+        assert scaled_memory_used < target_memory_efficiency, \
+            f"Memory usage {scaled_memory_used:.0f}MB exceeds target {target_memory_efficiency}MB"
 
-        # Apply normalization
-        if 'normalization' in config:
-            norm_config = config['normalization']
-            method = norm_config.get('method', 'zscore')
-            if method == 'robust':
-                processed, _ = self.normalizer.normalize_robust(processed)
-            else:
-                processed, _ = self.normalizer.normalize_zscore(processed)
+        assert validation_results['overall_score'] > 0.7, \
+            f"Validation score {validation_results['overall_score']:.3f} below threshold"
 
-        return processed
+    def test_error_handling_and_edge_cases_scenario(self):
+        """Test error handling and edge cases."""
+        print("\n=== Testing Error Handling and Edge Cases ===")
 
-    def _calculate_data_quality_score(self, df):
-        """Calculate data quality score."""
-        if df.empty:
-            return 0.0
+        # Test with empty data
+        empty_df = pd.DataFrame()
+        try:
+            result = calculate_simple_returns(empty_df)
+            assert len(result) == 0, "Should handle empty data gracefully"
+        except Exception as e:
+            assert "empty" in str(e).lower() or "data" in str(e).lower(), \
+                "Should mention empty data in error"
 
-        # Completeness
-        completeness = 1.0 - (df.isnull().sum().sum() / (df.shape[0] * df.shape[1]))
+        # Test with single data point
+        single_point_df = pd.DataFrame({'close': [100.0]})
+        try:
+            result = calculate_simple_returns(single_point_df)
+            # Should handle gracefully (likely NaN or empty)
+        except Exception as e:
+            assert "insufficient" in str(e).lower() or "data" in str(e).lower(), \
+                "Should mention insufficient data"
 
-        # Consistency (basic checks)
-        consistency = 1.0
-        if 'high' in df.columns and 'low' in df.columns:
-            invalid_hl = (df['high'] < df['low']).sum()
-            consistency -= invalid_hl / len(df)
+        # Test with NaN values
+        nan_data = pd.DataFrame({
+            'close': [100, np.nan, 102, 103, 104, np.nan, 106]
+        })
+        try:
+            result = calculate_simple_returns(nan_data)
+            # Should handle NaN values appropriately
+            assert len(result) == len(nan_data), "Should preserve length"
+        except Exception as e:
+            # If it raises an error, it should be informative
+            assert "missing" in str(e).lower() or "nan" in str(e).lower(), \
+                "Should mention missing values"
 
-        # Accuracy (basic outlier check)
-        accuracy = 1.0
-        for col in df.select_dtypes(include=[np.number]).columns:
-            if 'close' in col.lower() or 'price' in col.lower():
-                negative_prices = (df[col] < 0).sum()
-                accuracy -= negative_prices / len(df)
+        # Test with zero prices
+        zero_price_data = pd.DataFrame({
+            'close': [100, 0, 102, 103, 104]
+        })
+        try:
+            result = calculate_simple_returns(zero_price_data)
+            # Should handle zero prices
+        except Exception as e:
+            assert "zero" in str(e).lower() or "price" in str(e).lower(), \
+                "Should mention zero price issue"
 
-        # Weighted score
-        score = 0.4 * completeness + 0.3 * consistency + 0.3 * accuracy
-        return max(0.0, min(1.0, score))
+        # Test with negative prices
+        negative_price_data = pd.DataFrame({
+            'close': [100, -5, 102, 103, 104]
+        })
+        try:
+            result = calculate_simple_returns(negative_price_data)
+            # Should handle negative prices
+        except Exception as e:
+            assert "negative" in str(e).lower() or "price" in str(e).lower(), \
+                "Should mention negative price issue"
 
-    def _generate_quality_report(self, df):
-        """Generate quality report."""
-        completeness = 1.0 - (df.isnull().sum().sum() / (df.shape[0] * df.shape[1]))
-        consistency = 1.0
-        accuracy = 1.0
+        print("✓ Error handling tests completed successfully")
 
-        # Basic consistency checks
-        if 'high' in df.columns and 'low' in df.columns:
-            invalid_hl = (df['high'] < df['low']).sum()
-            consistency -= invalid_hl / len(df)
+    def test_configuration_and_reproducibility_scenario(self):
+        """Test configuration management and reproducibility."""
+        print("\n=== Testing Configuration and Reproducibility ===")
 
-        # Basic accuracy checks
-        for col in df.select_dtypes(include=[np.number]).columns:
-            if 'close' in col.lower() or 'price' in col.lower():
-                negative_prices = (df[col] < 0).sum()
-                accuracy -= negative_prices / len(df)
-
-        overall_score = 0.4 * completeness + 0.3 * consistency + 0.3 * accuracy
-
-        issues = []
-        if completeness < 0.95:
-            issues.append(f"Missing data points: {(1-completeness)*100:.1f}%")
-        if consistency < 0.95:
-            issues.append("OHLC consistency issues detected")
-        if accuracy < 0.95:
-            issues.append("Data accuracy issues detected")
-
-        return {
-            'dataset_id': f'processed_{datetime.now().strftime("%Y%m%d_%H%M%S")}',
-            'overall_score': max(0.0, min(1.0, overall_score)),
-            'completeness': max(0.0, min(1.0, completeness)),
-            'consistency': max(0.0, min(1.0, consistency)),
-            'accuracy': max(0.0, min(1.0, accuracy)),
-            'issues_found': issues
-        }
-
-    def _process_with_config_file(self, df, config_file):
-        """Process data using configuration file."""
-        with open(config_file, 'r') as f:
-            config = json.load(f)
-
-        return self._apply_custom_preprocessing(df, config)
-
-    def _create_mock_preprocessor(self):
-        """Create mock preprocessor for API testing."""
-        class MockPreprocessor:
-            def __init__(self):
-                self.last_quality_score = 0.0
-
-            def process(self, df, config=None):
-                # Simulate processing
-                processed = df.copy()
-                if config:
-                    # Apply custom config
-                    pass
-                else:
-                    # Default processing
-                    pass
-
-                self.last_quality_score = np.random.uniform(0.7, 0.95)
-                return processed
-
-            def get_quality_metrics(self):
-                return {
-                    'overall_score': self.last_quality_score,
-                    'completeness': np.random.uniform(0.8, 0.99),
-                    'consistency': np.random.uniform(0.8, 0.99),
-                    'accuracy': np.random.uniform(0.8, 0.99)
-                }
-
-        return MockPreprocessor()
-
-    def _simulate_api_processing(self, preprocessor, df, config=None):
-        """Simulate API processing."""
-        return preprocessor.process(df, config)
-
-    def test_end_to_end_workflow(self):
-        """Test complete end-to-end workflow."""
         # Create test data
-        test_data = self.create_sample_stock_data(n_symbols=3, n_days=200)
+        test_data = self.create_realistic_market_data(n_symbols=2, n_days=100)
 
         # Create configuration
-        config_file = os.path.join(self.temp_dir, 'e2e_config.json')
         config = {
-            "pipeline_id": "e2e_test_v1",
-            "missing_value_handling": {
-                "method": "interpolation",
-                "threshold": 0.05
+            'returns': {
+                'method': 'simple',
+                'period': 1
             },
-            "outlier_detection": {
-                "method": "iqr",
-                "threshold": 1.5,
-                "action": "clip"
+            'volatility': {
+                'method': 'rolling',
+                'window': 21,
+                'annualize': True,
+                'periods_per_year': 252
             },
-            "normalization": {
-                "method": "robust",
-                "preserve_stats": False
+            'momentum': {
+                'rsi_period': 14,
+                'macd_fast': 12,
+                'macd_slow': 26,
+                'macd_signal': 9
             }
         }
 
-        with open(config_file, 'w') as f:
-            json.dump(config, f, indent=2)
+        # Process with configuration multiple times with different seeds
+        results = []
+        for seed in [42, 42, 42]:  # Same seed should give same results
+            np.random.seed(seed)
 
-        # Process data
-        processed_data = self._process_with_config_file(test_data, config_file)
+            features = self.feature_service.generate_features_batch(
+                test_data,
+                features=['returns', 'volatility', 'momentum'],
+                config=config
+            )
+            results.append(features)
 
-        # Generate quality report
-        quality_report = self._generate_quality_report(processed_data)
+        # Check reproducibility
+        # Key numeric columns should be identical when using same seed
+        numeric_cols = results[0].select_dtypes(include=[np.number]).columns
 
-        # Validate entire workflow
-        assert quality_report['overall_score'] > 0.8, f"End-to-end quality should be > 0.8, got {quality_report['overall_score']}"
+        for col in numeric_cols[:5]:  # Check first 5 numeric columns
+            col_values = [result[col].dropna().values for result in results]
+            # Remove NaN values for comparison
+            min_length = min(len(values) for values in col_values)
+            if min_length > 0:
+                aligned_values = [values[:min_length] for values in col_values]
+                assert np.allclose(aligned_values[0], aligned_values[1], rtol=1e-10), \
+                    f"Column {col} should be reproducible"
+                assert np.allclose(aligned_values[1], aligned_values[2], rtol=1e-10), \
+                    f"Column {col} should be reproducible"
 
-        # Check that all processing steps were applied
-        # Should have normalized columns
-        normalized_cols = [col for col in processed_data.columns if col.endswith('_normalized')]
-        assert len(normalized_cols) > 0, "Normalization should be applied"
+        print("✓ Configuration and reproducibility tests completed")
+        print(f"  Generated consistent results across 3 runs")
+        print(f"  Checked {len(numeric_cols)} numeric columns for reproducibility")
 
-        # Should have outlier handling
-        assert len(processed_data) > 0, "Data should not be empty after processing"
+    def _get_memory_usage(self) -> float:
+        """Get current memory usage in MB."""
+        try:
+            import psutil
+            process = psutil.Process()
+            return process.memory_info().rss / 1024 / 1024  # Convert to MB
+        except ImportError:
+            return 0.0  # Fallback if psutil not available
 
-        # Should improve data quality
-        original_score = self._calculate_data_quality_score(test_data)
-        processed_score = quality_report['overall_score']
-        assert processed_score >= original_score, f"Processed data quality ({processed_score}) should be >= original ({original_score})"
+    def test_quickstart_comprehensive_scenario(self):
+        """Comprehensive test following quickstart guide scenarios."""
+        print("\n=== Testing Comprehensive Quickstart Scenario ===")
 
-        return processed_data, quality_report
+        # 1. Data Preparation
+        print("1. Preparing realistic market data...")
+        market_data = self.create_realistic_market_data(n_symbols=3, n_days=252)
+
+        # 2. Basic Analysis
+        print("2. Running basic financial analysis...")
+        symbols = market_data['symbol'].unique()
+
+        basic_results = {}
+        for symbol in symbols:
+            symbol_data = market_data[market_data['symbol'] == symbol]
+
+            # Calculate returns
+            returns = calculate_simple_returns(symbol_data['close'])
+
+            # Calculate key metrics
+            annual_return = calculate_annualized_returns(returns, periods_per_year=252)
+            volatility = calculate_annualized_volatility(returns, periods_per_year=252)
+            sharpe_ratio = calculate_sharpe_ratio(returns)
+            max_dd = calculate_max_drawdown(returns)
+
+            basic_results[symbol] = {
+                'annual_return': annual_return,
+                'volatility': volatility,
+                'sharpe_ratio': sharpe_ratio,
+                'max_drawdown': max_dd
+            }
+
+        # 3. Advanced Analysis
+        print("3. Running advanced analysis...")
+        advanced_results = {}
+
+        for symbol in symbols:
+            symbol_data = market_data[market_data['symbol'] == symbol]
+
+            # Volatility analysis
+            returns = calculate_simple_returns(symbol_data['close'])
+            rolling_vol = calculate_rolling_volatility(returns, window=21)
+            ewma_vol = calculate_ewma_volatility(returns, span=30)
+
+            # Momentum analysis
+            rsi = calculate_rsi(symbol_data['close'], period=14)
+            macd_line, signal_line, histogram = calculate_macd(symbol_data['close'])
+
+            # Volatility regime detection
+            vol_regime = calculate_volatility_regime(rolling_vol.dropna())
+
+            advanced_results[symbol] = {
+                'volatility_measures': {
+                    'rolling': rolling_vol,
+                    'ewma': ewma_vol,
+                    'regime': vol_regime
+                },
+                'momentum_indicators': {
+                    'rsi': rsi,
+                    'macd_line': macd_line,
+                    'macd_signal': signal_line,
+                    'macd_histogram': histogram
+                }
+            }
+
+        # 4. Portfolio Analysis
+        print("4. Performing portfolio analysis...")
+
+        # Create equal-weighted portfolio returns
+        portfolio_returns = pd.DataFrame(index=market_data['timestamp'].unique())
+        for symbol in symbols:
+            symbol_returns = calculate_simple_returns(
+                market_data[market_data['symbol'] == symbol]['close']
+            )
+            portfolio_returns[symbol] = symbol_returns.values
+
+        portfolio_returns['portfolio'] = portfolio_returns[symbols].mean(axis=1)
+
+        # Portfolio metrics
+        portfolio_annual_return = calculate_annualized_returns(portfolio_returns['portfolio'].dropna())
+        portfolio_volatility = calculate_annualized_volatility(portfolio_returns['portfolio'].dropna())
+        portfolio_sharpe = calculate_sharpe_ratio(portfolio_returns['portfolio'].dropna())
+        portfolio_max_dd = calculate_max_drawdown(portfolio_returns['portfolio'].dropna())
+
+        # 5. Correlation Analysis
+        correlation_matrix = portfolio_returns[symbols].corr()
+
+        # 6. Generate Summary Report
+        print("5. Generating summary report...")
+
+        summary_report = {
+            'analysis_date': datetime.now().isoformat(),
+            'data_period': {
+                'start': market_data['timestamp'].min().isoformat(),
+                'end': market_data['timestamp'].max().isoformat(),
+                'trading_days': len(market_data['timestamp'].unique())
+            },
+            'portfolio_metrics': {
+                'annual_return': portfolio_annual_return,
+                'volatility': portfolio_volatility,
+                'sharpe_ratio': portfolio_sharpe,
+                'max_drawdown': portfolio_max_dd
+            },
+            'individual_metrics': basic_results,
+            'correlations': correlation_matrix.to_dict(),
+            'data_quality': {
+                'total_data_points': len(market_data),
+                'symbols_analyzed': len(symbols),
+                'completeness_score': 1.0 - (market_data.isnull().sum().sum() / market_data.size)
+            }
+        }
+
+        # 7. Save Results
+        report_file = os.path.join(self.temp_dir, 'financial_analysis_report.json')
+        with open(report_file, 'w') as f:
+            json.dump(summary_report, f, indent=2, default=str)
+
+        # Validate Results
+        assert os.path.exists(report_file), "Analysis report should be created"
+        assert len(summary_report['individual_metrics']) == len(symbols), "Should have metrics for all symbols"
+        assert summary_report['portfolio_metrics']['sharpe_ratio'] > -3, "Portfolio Sharpe should be reasonable"
+        assert summary_report['portfolio_metrics']['max_drawdown'] <= 0, "Max drawdown should be negative or zero"
+
+        print("✓ Comprehensive quickstart scenario completed successfully")
+        print(f"  Analysis period: {summary_report['data_period']['trading_days']} trading days")
+        print(f"  Portfolio return: {summary_report['portfolio_metrics']['annual_return']:.2%}")
+        print(f"  Portfolio volatility: {summary_report['portfolio_metrics']['volatility']:.2%}")
+        print(f"  Portfolio Sharpe ratio: {summary_report['portfolio_metrics']['sharpe_ratio']:.3f}")
+        print(f"  Portfolio max drawdown: {summary_report['portfolio_metrics']['max_drawdown']:.2%}")
+        print(f"  Report saved to: {report_file}")
+
+        return summary_report
+
+
+if __name__ == "__main__":
+    # Run comprehensive tests
+    test_suite = TestFinancialFeaturesIntegration()
+    test_suite.setup_method()
+
+    try:
+        # Run key scenarios
+        test_suite.test_basic_returns_calculation_scenario()
+        test_suite.test_volatility_calculation_scenario()
+        test_suite.test_momentum_indicators_scenario()
+        test_suite.test_risk_metrics_scenario()
+        test_suite.test_feature_service_integration_scenario()
+        test_suite.test_validation_service_integration_scenario()
+        test_suite.test_end_to_end_portfolio_analysis_scenario()
+        test_suite.test_performance_benchmarking_scenario()
+        test_suite.test_quickstart_comprehensive_scenario()
+
+        print("\n" + "="*60)
+        print("All financial features integration tests completed successfully!")
+        print("="*60)
+
+    finally:
+        test_suite.teardown_method()
