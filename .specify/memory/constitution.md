@@ -1,98 +1,77 @@
 <!--
 Sync Impact Report
-Version change: 1.0.0 -> 1.1.0
+Version change: 1.2.0 -> 1.3.0
 Modified principles:
-- Principle slot 1 -> I. Data Fidelity Is Mandatory
-- Principle slot 2 -> II. Risk-First Portfolio Governance
-- Principle slot 3 -> III. Test-Driven Statistical Validation
-- Principle slot 4 -> IV. Reproducible CLI-Oriented Workflows
-- Principle slot 5 -> V. Observability And Performance Discipline
+- I. Data Integrity in Financial Markets -> I. Clean Data is Non-Negotiable
+- II. Portfolio Risk Management Discipline -> II. Risk Management First
+- III. Statistical Rigor and Model Validation -> III. Simple Models, Proven Results
+- IV. Reproducible Quantitative Research -> IV. Reproducible by Design
+- V. Performance Optimization and Monitoring -> V. Practical Performance
 Added sections:
-- Operational Constraints
-- Development Workflow & Quality Gates
+- Portfolio Essentials (simplified from Quantitative Finance Best Practices)
+- ML Guidelines (simplified from ML Integration Standards)
+- Keep It Simple (simplified from Operational Constraints)
 Removed sections:
-- None
+- Operational Constraints (overly complex)
+- Development Workflow & Quality Gates (too process-heavy)
+- Complex governance procedures
 Templates requiring updates:
-- updated: .specify/templates/plan-template.md
-- updated: CLAUDE.md
+- ✅ updated: .specify/templates/plan-template.md
+- ✅ updated: .specify/templates/tasks-template.md
+- ✅ updated: .specify/templates/spec-template.md
 Follow-up TODOs:
-- TODO(RATIFICATION_DATE): Document original adoption date from project history.
+- None - focus on simplicity and resume-readiness
 -->
 # Quant Portfolio System Constitution
 
 ## Core Principles
 
-### I. Data Fidelity Is Mandatory
-All ingestion, preprocessing, and storage work MUST route through the modules under `data/src/` and
-approved adapters. Every dataset powering strategies or portfolio engines MUST pass the automated
-validation pipelines (`data/src/lib/validation.py`) and ship with quality reports saved to
-`data/storage/`. Teams MUST run `python scripts/setup_data_environment.py` prior to altering storage
-so required directories and schemas exist. Rationale: No allocation or forecast is trusted unless its
-inputs are traceable, validated, and reproducible.
+### I. Clean Data is Non-Negotiable
+All market data MUST be cleaned, validated, and handled for missing values before any analysis. Use simple, proven methods for data quality - no complex pipelines needed. Rationale: Bad data leads to bad decisions; keep data preprocessing straightforward and reliable.
 
-### II. Risk-First Portfolio Governance
-Portfolio changes MUST demonstrate compliance with defined risk thresholds (Sharpe, max drawdown,
-VaR/CVaR) before merge or deployment. Optimization configs in `portfolio/` and strategies in
-`strategies/` MUST document risk assumptions and provide guardrail tests that fail when constraints
-are breached. New models MUST expose scenario and stress results in review artifacts so reviewers can
-reject unsafe proposals. Rationale: Capital protection outranks return seeking in production
-workflows.
+### II. Risk Management First
+Every portfolio optimization MUST include basic risk constraints: position limits, max drawdown protection, and volatility controls. Focus on core risk metrics (Sharpe ratio, max drawdown) rather than complex VaR calculations. Rationale: Demonstrates you understand risk management without overcomplicating the implementation.
 
-### III. Test-Driven Statistical Validation
-Every change MUST start with failing tests that encode expected financial behaviour (`pytest`
-workflows in `tests/`). Statistical assertions (coverage, factor significance, backtest expectations)
-MUST live alongside unit, integration, and performance suites and run via `pytest -m "not slow"
-before PR submission. Code is unmergeable until `python -m pytest`, `flake8`, and `mypy .` pass
-without regression. Rationale: We only trust math that is reproducible and automatically checked.
+### III. Simple Models, Proven Results
+Use straightforward ML models (Random Forest, basic XGBoost) with simple validation. No ensemble methods or complex feature engineering needed. Focus on demonstrating clear model performance vs. benchmarks. Rationale: Shows you can apply ML effectively without overengineering.
 
-### IV. Reproducible CLI-Oriented Workflows
-All public capabilities MUST be invocable via CLI entry points or automation scripts (`data/src/cli`,
-`scripts/`, `config/`). Configuration changes MUST be expressed through checked-in files under
-`config/` with environment overrides documented, never via ad-hoc local edits. Workflows MUST
-document invocation commands and expected artifacts in `examples/` or docs so another quant can
-replay results on a fresh machine. Rationale: Reproducible pipelines keep research auditable and
-shareable.
+### IV. Reproducible by Design
+All analysis MUST be runnable through simple scripts with clear configurations. No complex CLI frameworks needed - just clean Python scripts that others can easily understand and run. Rationale: Demonstrates good coding practices and makes your project easy to review.
 
-### V. Observability And Performance Discipline
-Data pipelines, models, and strategies MUST emit structured logging and metrics sufficient to
-diagnose failures and drift. Performance budgets (10M rows <30s, <4GB memory) MUST be enforced with
-automated checks in `tests/performance/` and upheld before shipping compute-heavy changes in
-`forecasting/`. Any GPU workloads MUST declare resource needs via `.env.gpu` and include monitoring
-guidance. Rationale: Real-time operations demand transparent health signals and predictable
-throughput.
+### V. Practical Performance
+Optimize for readability and maintainability first. Performance targets should be reasonable for a demo project. Focus on clean, well-documented code rather than premature optimization. Rationale: Resume projects should showcase clean code, not complex engineering.
 
-## Operational Constraints
+## Keep It Simple
 
-- Python 3.11+ is the only supported runtime; dependencies MUST flow through
-  `docs/requirements.txt` and installations use `pip install -r docs/requirements.txt`.
-- Repository structure MUST respect directory ownership; new assets belong in their domain-specific
-  modules (`data/src/`, `portfolio/`, `strategies/`, `forecasting/`, `tests/`).
-- Storage directories under `data/storage/` are runtime artifacts and MUST NOT be committed; data
-  mutations require documenting provenance in PR descriptions.
-- GPU workflows MUST isolate heavy compute inside `forecasting/` and declare configuration via
-  `.env.gpu` templates.
+- Use Python 3.11+ and manage dependencies via `docs/requirements.txt`
+- Organize files in logical directories: `data/`, `portfolio/`, `strategies/`, `tests/`
+- No complex build systems or deployment pipelines needed
+- Focus on core functionality, not infrastructure
 
-## Development Workflow & Quality Gates
+## Development Workflow
 
-- Run `python scripts/setup_data_environment.py` before touching ingestion or backtest code.
-- Format with `black` and `isort` (88-character width) before review; enforce `flake8` and `mypy .`.
-- Pre-PR verification MUST include `pytest -m "not slow"`; release branches MUST pass `python -m
-  pytest`.
-- Backtests or data workflows MUST be validated by executing `python scripts/run_preprocessing.py
-  --config config/pipeline_config.json` or the documented equivalent pipeline.
-- Configuration changes MUST clone existing templates rather than editing committed defaults; record
-  overrides and environment requirements in PR notes.
-- Reviewers MUST confirm constitution gate checklists in plan and task templates before merge.
+- Format code with `black` for consistency
+- Write basic tests for core functionality
+- Keep documentation simple and focused
+- No complex CI/CD pipelines needed
+- Prioritize working code over process
+
+## Portfolio Essentials
+
+- Focus on 3-4 core optimization methods (Mean-Variance, maybe Black-Litterman)
+- Include basic backtesting with simple benchmarks
+- Track key metrics: Sharpe ratio, max drawdown, returns
+- No complex regime detection or ensemble methods needed
+
+## ML Guidelines
+
+- Use 1-2 simple ML models (Random Forest, basic XGBoost)
+- Focus on feature importance and basic validation
+- No complex ensemble or ablation studies
+- Demonstrate clear value over traditional methods
 
 ## Governance
 
-Amendments require approval from the quantitative platform maintainers and documentation owners,
-with risk lead sign-off when principles affect capital allocation. Every change MUST include a version
-bump and update dependent templates (`.specify/templates/*.md`, agent guidance files, README
-references). Versioning follows semantic rules: MAJOR for breaking removals or redefinition of
-principles, MINOR for added principles or expanded duties, PATCH for clarifications. Submit amendment
-PRs with rationale, testing summary, and rollback plan. Compliance reviews run quarterly; violations
-trigger remediation tasks tracked in `tasks.md` and block deployments until resolved.
+Keep it simple: if you need to change something, make sure it still demonstrates the core concepts clearly. Focus on what will impress interviewers - clean code, good documentation, and working functionality.
 
-**Version**: 1.1.0 | **Ratified**: TODO(RATIFICATION_DATE): Document original adoption date from project
-history. | **Last Amended**: 2025-09-21
+**Version**: 1.3.0 | **Ratified**: 2025-09-22 | **Last Amended**: 2025-09-22

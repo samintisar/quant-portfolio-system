@@ -44,14 +44,14 @@
 **Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
 **Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
-## Constitution Check
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+## Simplicity Check
+*GATE: Must pass before starting any work.*
 
-- [ ] Data Fidelity (Principle I): Plan documents ingestion/preprocessing touchpoints, required validation, and storage quality reporting.
-- [ ] Risk Governance (Principle II): Risk metrics, constraints, and review evidence are defined with tests that will fail on breaches.
-- [ ] Test-Driven Validation (Principle III): Planned work sequences tests before implementation and covers statistical assertions.
-- [ ] Reproducible Workflow (Principle IV): CLI entry points, configuration files, and rerunnable commands are specified.
-- [ ] Observability & Performance (Principle V): Logging, metrics, and performance budgets are addressed with validation tasks.
+- [ ] Clean Data (Principle I): Simple data handling, no complex pipelines
+- [ ] Risk Management (Principle II): Basic risk constraints, no overcomplicated metrics
+- [ ] Simple Models (Principle III): Straightforward ML approach, no ensembles
+- [ ] Reproducible (Principle IV): Clean scripts anyone can run
+- [ ] Practical (Principle V): Focus on working code, not premature optimization
 ## Project Structure
 
 ### Documentation (this feature)
@@ -212,5 +212,5 @@ ios/ or android/
 - [ ] Complexity deviations documented
 
 ---
-*Based on Constitution v1.1.0 - See `/memory/constitution.md`*
+*Based on Constitution v1.3.0 - See `/memory/constitution.md`*
 
