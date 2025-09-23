@@ -1,0 +1,322 @@
+openapi: 3.0.3
+info:
+  title: Portfolio Optimization API
+  description: API for optimizing investment portfolios using multiple methods
+  version: 1.0.0
+
+paths:
+  /portfolio/optimize:
+    post:
+      summary: Optimize portfolio allocation
+      description: Run portfolio optimization using specified method and constraints
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OptimizationRequest'
+      responses:
+        '200':
+          description: Successful optimization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OptimizationResponse'
+        '400':
+          description: Invalid input data
+        '422':
+          description: Unprocessable entity (invalid constraints)
+
+  /portfolio/analyze:
+    post:
+      summary: Analyze portfolio performance
+      description: Calculate performance metrics for given portfolio weights
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisRequest'
+      responses:
+        '200':
+          description: Performance analysis results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisResponse'
+
+  /data/assets:
+    get:
+      summary: Get asset data
+      description: Retrieve historical price data for specified assets
+      parameters:
+        - name: symbols
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Comma-separated list of asset symbols
+        - name: period
+          in: query
+          schema:
+            type: string
+            default: "5y"
+          description: Time period (1y, 2y, 5y, etc.)
+      responses:
+        '200':
+          description: Historical asset data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetDataResponse'
+
+components:
+  schemas:
+    OptimizationRequest:
+      type: object
+      required:
+        - assets
+        - optimization_method
+      properties:
+        assets:
+          type: array
+          items:
+            type: string
+          description: List of asset symbols to include
+        optimization_method:
+          type: string
+          enum: [mean_variance, black_litterman, cvar]
+          description: Optimization method to use
+        constraints:
+          $ref: '#/components/schemas/PortfolioConstraints'
+        market_views:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketView'
+          description: Market views for Black-Litterman optimization
+        data_period:
+          type: string
+          default: "5y"
+          description: Historical data period to use
+
+    PortfolioConstraints:
+      type: object
+      properties:
+        max_position_size:
+          type: number
+          default: 0.05
+          description: Maximum weight per asset (5%)
+        max_sector_concentration:
+          type: number
+          default: 0.20
+          description: Maximum sector weight (20%)
+        max_drawdown:
+          type: number
+          default: 0.15
+          description: Maximum acceptable drawdown (15%)
+        min_return:
+          type: number
+          default: 0.0
+          description: Minimum required return
+        max_volatility:
+          type: number
+          default: 0.25
+          description: Maximum acceptable volatility
+        risk_free_rate:
+          type: number
+          default: 0.02
+          description: Risk-free rate for calculations
+
+    MarketView:
+      type: object
+      required:
+        - asset_symbol
+        - expected_return
+        - confidence
+      properties:
+        asset_symbol:
+          type: string
+          description: Asset the view applies to
+        expected_return:
+          type: number
+          description: Expected annual return
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Confidence level (0-1)
+        view_type:
+          type: string
+          enum: [absolute, relative]
+          default: absolute
+          description: Type of view
+        benchmark_asset:
+          type: string
+          description: Benchmark asset for relative views
+
+    OptimizationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether optimization succeeded
+        optimal_weights:
+          type: object
+          additionalProperties:
+            type: number
+          description: Optimal asset weights
+        performance:
+          $ref: '#/components/schemas/PortfolioPerformance'
+        execution_time:
+          type: number
+          description: Optimization time in seconds
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Optimization warnings
+        errors:
+          type: array
+          items:
+            type: string
+          description: Optimization errors
+
+    AnalysisRequest:
+      type: object
+      required:
+        - assets
+        - weights
+      properties:
+        assets:
+          type: array
+          items:
+            type: string
+          description: List of asset symbols
+        weights:
+          type: object
+          additionalProperties:
+            type: number
+          description: Portfolio weights
+        benchmark_symbol:
+          type: string
+          default: "SPY"
+          description: Benchmark symbol for comparison
+        data_period:
+          type: string
+          default: "5y"
+          description: Historical data period
+
+    AnalysisResponse:
+      type: object
+      properties:
+        performance:
+          $ref: '#/components/schemas/PortfolioPerformance'
+        asset_metrics:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/AssetMetrics'
+          description: Individual asset metrics
+        correlations:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: number
+          description: Asset correlation matrix
+
+    AssetDataResponse:
+      type: object
+      properties:
+        assets:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/AssetData'
+          description: Asset data by symbol
+        summary:
+          type: object
+          properties:
+            total_assets:
+              type: integer
+            data_points:
+              type: integer
+            date_range:
+              type: object
+              properties:
+                start:
+                  type: string
+                  format: date
+                end:
+                  type: string
+                  format: date
+
+    PortfolioPerformance:
+      type: object
+      properties:
+        sharpe_ratio:
+          type: number
+          description: Risk-adjusted return measure
+        max_drawdown:
+          type: number
+          description: Maximum loss from peak
+        annual_return:
+          type: number
+          description: Annualized return
+        annual_volatility:
+          type: number
+          description: Annualized volatility
+        benchmark_return:
+          type: number
+          description: Benchmark return
+        alpha:
+          type: number
+          description: Excess return over benchmark
+        beta:
+          type: number
+          description: Portfolio sensitivity to benchmark
+        information_ratio:
+          type: number
+          description: Risk-adjusted excess return
+
+    AssetMetrics:
+      type: object
+      properties:
+        annual_return:
+          type: number
+        annual_volatility:
+          type: number
+        sharpe_ratio:
+          type: number
+        max_drawdown:
+          type: number
+        beta:
+          type: number
+
+    AssetData:
+      type: object
+      properties:
+        symbol:
+          type: string
+        name:
+          type: string
+        sector:
+          type: string
+        prices:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              open:
+                type: number
+              high:
+                type: number
+              low:
+                type: number
+              close:
+                type: number
+              volume:
+                type: integer
+        metrics:
+          $ref: '#/components/schemas/AssetMetrics'

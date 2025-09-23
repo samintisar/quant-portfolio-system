@@ -63,10 +63,10 @@ This project follows the Quant Portfolio System Constitution (v1.1.0):
 - Observability and performance discipline: maintain structured logging, metrics, and enforce documented performance budgets.
 
 ## Recent Changes
+- 001-description-portfolio-optimization: Added Python 3.11+ + Pandas, NumPy, CVXPY, Riskfolio-Lib, Yahoo Finance API, statsmodels
 <!-- Auto-updated by scripts - keep last 3 entries -->
 - 2025-09-18: Complete data preprocessing system with cleaning, validation, and normalization
 - 2025-09-18: Comprehensive unit and performance tests for preprocessing libraries
-- 2025-09-18: Performance benchmarks: 10M data points in <30 seconds, <4GB memory usage
 
 ## Repository Organization
 **MAINTAIN CLEAN PROJECT STRUCTURE - NO RANDOM FILES IN ROOT!**
