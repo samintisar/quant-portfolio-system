@@ -14,7 +14,9 @@
       "Bash(find:*)",
       "Bash(powershell:*)",
       "Read(//proxmox/ibrokeass/proxmox/ibrokeass/Github/quant-portfolio-system/**)",
-      "Bash(jupyter:*)"
+      "Bash(jupyter:*)",
+      "Bash(PYTHONPATH=. python:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": [],
     "ask": []

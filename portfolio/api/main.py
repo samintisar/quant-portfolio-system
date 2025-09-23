@@ -7,8 +7,10 @@ Provides essential functionality without overengineered abstractions.
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Literal
 import logging
+import pandas as pd
+from fastapi.responses import JSONResponse
 
 from portfolio.optimizer.optimizer import SimplePortfolioOptimizer
 from portfolio.performance.calculator import SimplePerformanceCalculator
@@ -67,7 +69,7 @@ class MarketViewModel(BaseModel):
 
 class OptimizeRequest(BaseModel):
     assets: List[AssetModel]
-    method: str = "mean_variance"
+    method: Literal["mean_variance", "cvar", "black_litterman"] = "mean_variance"
     objective: str = "sharpe"
     constraints: Optional[ConstraintModel] = None
     market_views: Optional[List[MarketViewModel]] = None
@@ -146,7 +148,13 @@ async def optimize_portfolio(request: OptimizeRequest):
         symbols = [asset.symbol for asset in request.assets]
 
         if len(symbols) < 2:
-            raise HTTPException(status_code=400, detail="At least 2 symbols required")
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "success": False,
+                    "error": "At least 2 symbols are required"
+                }
+            )
 
         # Convert assets to Asset objects for optimizer
         assets = []
@@ -157,19 +165,35 @@ async def optimize_portfolio(request: OptimizeRequest):
                 sector=asset_model.sector or "Unknown"
             )
 
-            # Fetch data for the asset
+            period_str = f"{request.lookback_period}d" if request.lookback_period else config.portfolio.default_period
+
             try:
-                prices = optimizer.fetch_data([asset.symbol], period=f"{request.lookback_period}d")
-                if not prices.empty:
-                    returns = optimizer.calculate_returns(prices)
-                    if not returns.empty:
-                        asset.returns = returns[asset.symbol].dropna()
-                        asset.prices = prices[asset.symbol].dropna()
+                history = data_service.fetch_historical_data(asset.symbol, period=period_str)
+                if history.empty:
+                    logger.warning(f"No historical data available for {asset.symbol}")
+                    continue
+
+                price_series = history["Adj Close"].dropna() if "Adj Close" in history else history.iloc[:, 0].dropna()
+                returns_series = (
+                    history["returns"].dropna()
+                    if "returns" in history
+                    else price_series.pct_change().dropna()
+                )
+
+                if returns_series.empty:
+                    logger.warning(f"No return series available for {asset.symbol}")
+                    continue
+
+                asset.set_prices(price_series)
+                asset.set_returns(returns_series)
             except Exception as e:
                 logger.warning(f"Failed to fetch data for {asset.symbol}: {e}")
                 continue
 
             assets.append(asset)
+
+        if not assets:
+            raise HTTPException(status_code=400, detail="No valid asset data available for optimization")
 
         # Create constraints from request
         constraints_dict = {}
@@ -198,6 +222,17 @@ async def optimize_portfolio(request: OptimizeRequest):
                 views.append(view)
             market_views = MarketViewCollection(views)
 
+        # Validate requested method explicitly (additional guard in case validation is bypassed)
+        allowed_methods = {"mean_variance", "cvar", "black_litterman"}
+        if request.method not in allowed_methods:
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "success": False,
+                    "error": f"Unsupported optimization method: {request.method}"
+                }
+            )
+
         # Run optimization
         start_time = datetime.now()
         result = optimizer.optimize(
@@ -208,6 +243,7 @@ async def optimize_portfolio(request: OptimizeRequest):
             market_views=market_views
         )
         execution_time = (datetime.now() - start_time).total_seconds()
+        execution_time = max(execution_time, 1e-6)
 
         # Create response
         response = OptimizeResponse(
@@ -225,6 +261,8 @@ async def optimize_portfolio(request: OptimizeRequest):
 
         return response
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Optimization error: {e}")
         return OptimizeResponse(
@@ -244,10 +282,15 @@ async def analyze_portfolio(request: AnalyzeRequest):
         symbols = [asset.symbol for asset in request.assets]
 
         if len(symbols) != len(request.weights):
-            raise HTTPException(status_code=400, detail="Symbols and weights must match")
+            raise HTTPException(status_code=422, detail="Symbols and weights must match")
+
+        symbol_set = {asset.symbol.upper() for asset in request.assets}
+        weight_set = {symbol.upper() for symbol in request.weights.keys()}
+        if symbol_set != weight_set:
+            raise HTTPException(status_code=422, detail="Weights must include every asset symbol exactly once")
 
         if abs(sum(request.weights.values()) - 1.0) > 0.01:
-            raise HTTPException(status_code=400, detail="Weights must sum to 1.0")
+            raise HTTPException(status_code=422, detail="Weights must sum to 1.0")
 
         # Fetch data
         prices = optimizer.fetch_data(symbols, period=f"{request.lookback_period}d")
@@ -268,6 +311,7 @@ async def analyze_portfolio(request: AnalyzeRequest):
         report = performance_calc.generate_report(metrics)
 
         execution_time = (datetime.now() - start_time).total_seconds()
+        execution_time = max(execution_time, 1e-6)
 
         return AnalyzeResponse(
             success=True,
@@ -278,6 +322,8 @@ async def analyze_portfolio(request: AnalyzeRequest):
             report=report
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         execution_time = (datetime.now() - start_time).total_seconds()
         logger.error(f"Analysis error: {e}")
@@ -295,34 +341,73 @@ async def get_assets_data(symbols: str = None, period: str = "5y"):
         if not symbols:
             raise HTTPException(status_code=422, detail="symbols parameter is required")
 
-        symbol_list = symbols.split(',')
+        symbol_list = [symbol.strip().upper() for symbol in symbols.split(',') if symbol.strip()]
+        if not symbol_list:
+            raise HTTPException(status_code=422, detail="symbols parameter is required")
 
-        # Fetch data for all symbols
-        prices = optimizer.fetch_data(symbol_list, period=period)
-        if prices.empty:
+        assets_data: Dict[str, Dict[str, Any]] = {}
+
+        benchmark_symbol = getattr(getattr(config, "performance", object()), "benchmark", "SPY")
+        benchmark_data = data_service.fetch_historical_data(benchmark_symbol, period) if benchmark_symbol else pd.DataFrame()
+        benchmark_returns = (
+            benchmark_data["returns"].dropna()
+            if isinstance(benchmark_data, pd.DataFrame) and "returns" in benchmark_data
+            else None
+        )
+
+        for symbol in symbol_list:
+            data = data_service.fetch_historical_data(symbol, period)
+            if data.empty:
+                logger.warning(f"No data returned for symbol {symbol} during period {period}")
+                continue
+
+            usable_prices = data.dropna(subset=["Open", "High", "Low", "Close", "Adj Close", "Volume"], how="any")
+            returns_series = (
+                usable_prices["returns"].dropna()
+                if "returns" in usable_prices
+                else usable_prices["Adj Close"].pct_change().dropna()
+            )
+
+            metrics = performance_calc.calculate_metrics(
+                returns_series,
+                benchmark_returns=benchmark_returns
+            )
+
+            price_records = [
+                {
+                    "date": index.to_pydatetime().strftime("%Y-%m-%d"),
+                    "open": float(row["Open"]),
+                    "high": float(row["High"]),
+                    "low": float(row["Low"]),
+                    "close": float(row["Close"]),
+                    "adj_close": float(row["Adj Close"]),
+                    "volume": int(row["Volume"]),
+                }
+                for index, row in usable_prices.iterrows()
+            ]
+
+            assets_data[symbol] = {
+                "symbol": symbol,
+                "period": period,
+                "data_points": int(len(returns_series)),
+                "prices": price_records,
+                "metrics": metrics,
+            }
+
+        if not assets_data:
             raise HTTPException(status_code=400, detail="No data found for symbols")
 
-        returns = optimizer.calculate_returns(prices)
+        summary = {
+            "symbols": list(assets_data.keys()),
+            "period": period,
+            "total_assets": len(assets_data),
+            "benchmark": benchmark_symbol,
+        }
 
-        # Calculate metrics for each symbol
-        assets_data = []
-        for symbol in symbol_list:
-            if symbol in returns.columns:
-                symbol_returns = returns[symbol].dropna()
-                symbol_prices = prices[symbol].dropna() if symbol in prices.columns else None
+        if assets_data:
+            summary["data_points"] = {symbol: data["data_points"] for symbol, data in assets_data.items()}
 
-                metrics = performance_calc.calculate_metrics(symbol_returns)
-
-                asset_data = AssetData(
-                    symbol=symbol,
-                    period=period,
-                    data_points=len(symbol_returns),
-                    metrics=metrics
-                )
-
-                assets_data.append(asset_data)
-
-        return {"assets": assets_data}
+        return {"assets": assets_data, "summary": summary}
 
     except HTTPException:
         raise

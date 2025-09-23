@@ -1,91 +1,82 @@
-# Quant Portfolio System - Resume Project TODO
+Project Demo Notebook Outline (portfolio_optimization_lab.ipynb)
 
-## Project Overview
-**Goal**: Build a portfolio optimization system with ML enhancements for resume demonstration
-**Focus**: Production-ready application with core features that impress recruiters
-**Timeline**: 2-3 weeks (part-time)
+- [ ] Full project demo overview (this notebook)
+  - [ ] Explain scope: data pipeline, ML, optimization, backtesting, API, reporting
+  - [ ] List core modules used and where code lives (`portfolio/`)
 
----
+- [ ] Data pipeline demo
+  - [ ] Use `YahooFinanceService.list_available_offline_data()` to show cache
+  - [ ] `fetch_and_process_data(symbols, period)` and inspect a sample `quality_report`
+  - [ ] `fetch_price_data(symbols, period)` consolidated prices for downstream steps
 
-## Spec-Driven Development Plan
+- [ ] ML workflow demo (single symbol)
+  - [ ] Build features with `RandomForestPredictor.create_features(df)`
+  - [ ] Prepare data, train, and capture metrics via `train()` and `validate_model()`
+  - [ ] Plot top feature importance via `plot_feature_importance`
 
-### Phase 1: Portfolio Optimization (001)
-**Spec**: `specs/001-portfolio-optimization/spec.md`
-- Mean-Variance, Black-Litterman, CVaR optimization
-- Basic risk constraints and performance metrics
-- Simple validation approach
+- [ ] Walk-forward backtesting demo
+  - [ ] Configure and run `WalkForwardBacktester.run_backtest(symbols, start, end)`
+  - [ ] Show strategy metrics and `generate_report()` summary
+  - [ ] Plot equity/drawdown of primary strategy vs. SPY (if available)
 
-### Phase 2: ML Integration (002)
-**Spec**: `specs/002-ml-integration/spec.md`
-- Random Forest return prediction
-- Basic feature engineering
-- Simple validation and feature importance
+- [ ] API quick demo (optional)
+  - [ ] If API server is running, request `/optimize` and `/analyze` using `requests`
+  - [ ] Otherwise, reference `examples/api_test_client.py` usage
 
-### Phase 3: Data Pipeline (003)
-**Spec**: `specs/003-data-pipeline/spec.md`
-- Yahoo Finance data ingestion
-- Cleaning, validation, normalization
-- Simple quality reporting
 
-### Phase 4: Backtesting (004)
-**Spec**: `specs/004-backtesting/spec.md`
-- Walk-forward validation
-- Benchmark comparison
-- Basic performance attribution
+- [ ] Create notebook scaffold and context
+  - [ ] Add title and short description of goals (mean-variance, CVaR, BL)
+  - [ ] Set working directory assumptions and paths for saving figures/outputs
 
-### Phase 5: API & Dashboard (005)
-**Spec**: `specs/005-api-dashboard/spec.md`
-- FastAPI endpoints
-- Streamlit dashboard
-- Simple deployment setup
+- [ ] Setup parameters and imports
+  - [ ] Imports: pandas, numpy, matplotlib.pyplot
+  - [ ] From `portfolio.data.yahoo_service` import `YahooFinanceService`
+  - [ ] From `portfolio.optimizer.optimizer` import `SimplePortfolioOptimizer`
+  - [ ] From `portfolio.performance.calculator` import `SimplePerformanceCalculator`
+  - [ ] From `portfolio.performance.visualization` import `plot_equity_curve`, `plot_drawdown_curve`
+  - [ ] Define `symbols = ["AAPL", "MSFT", "GOOGL", "AMZN"]`, `period = "5y"`
 
----
+- [ ] Fetch prices and quick data QA
+  - [ ] Initialize `YahooFinanceService(use_offline_data=True, offline_data_dir="data")`
+  - [ ] `prices = service.fetch_price_data(symbols, period)` (Adj Close)
+  - [ ] Optional: per-symbol pipeline via `fetch_and_process_data` and review any `quality_report`
+  - [ ] Preview data (dates, shape, head) and basic missing checks
 
-## Spec Execution Status
+- [ ] Compute returns
+  - [ ] `asset_returns = prices.pct_change().dropna()`
+  - [ ] Inspect summary stats (mean, std, corr)
 
-### 001 - Portfolio Optimization
-- [ ] Create `portfolio/optimization.py` - Core optimization methods
-- [ ] Create `portfolio/metrics.py` - Performance calculation
-- [ ] Create `portfolio/constraints.py` - Constraint handling
-- [ ] Create `tests/test_optimization.py` - Basic optimization tests
+- [ ] Mean-Variance optimization (baseline)
+  - [ ] Init `opt = SimplePortfolioOptimizer()`
+  - [ ] Run `opt.mean_variance_optimize(asset_returns, weight_cap=None)` and store `weights`
+  - [ ] Compute `portfolio_returns = (asset_returns * pd.Series(weights)).sum(axis=1)`
 
-### 002 - ML Integration
-- [ ] Create `ml/predictor.py` - Return prediction model
-- [ ] Create `ml/features.py` - Feature engineering
-- [ ] Create `ml/validation.py` - Model validation
-- [ ] Create `tests/test_ml.py` - ML model tests
+- [ ] Performance metrics and report
+  - [ ] Init `perf = SimplePerformanceCalculator()`
+  - [ ] Optional benchmark: fetch SPY and compute `benchmark_returns`
+  - [ ] `metrics = perf.calculate_metrics(portfolio_returns, benchmark_returns)` and print key fields
 
-### 003 - Data Pipeline
-- [ ] Create `data/src/feeds/yahoo.py` - Yahoo Finance data ingestion
-- [ ] Create `data/src/lib/cleaning.py` - Data cleaning utilities
-- [ ] Create `data/src/lib/validation.py` - Data validation
-- [ ] Create `data/src/lib/normalization.py` - Data normalization
-- [ ] Create `tests/test_data.py` - Data processing tests
+- [ ] Plots
+  - [ ] Equity curve: `plot_equity_curve(portfolio_returns, benchmark_returns)`
+  - [ ] Drawdown curve: `plot_drawdown_curve(portfolio_returns)`
 
-### 004 - Backtesting
-- [ ] Create `backtesting/engine.py` - Backtesting core logic
-- [ ] Create `backtesting/benchmarks.py` - Benchmark portfolios
-- [ ] Create `backtesting/metrics.py` - Performance metrics
-- [ ] Create `tests/test_backtesting.py` - Backtesting tests
+- [ ] Efficient frontier preview
+  - [ ] Use `opt.get_efficient_frontier(symbols, n_points=15)`
+  - [ ] Scatter plot of (volatility, return), highlight baseline point
 
-### 005 - API & Dashboard
-- [ ] Create `api/main.py` - FastAPI application
-- [ ] Create `dashboard/app.py` - Streamlit dashboard
-- [ ] Create `docker-compose.yml` - Docker setup
-- [ ] Create `tests/test_api.py` - API tests
+- [ ] Alternative allocations (optional)
+  - [ ] CVaR: `opt.cvar_optimize(asset_returns, alpha=0.05, weight_cap=None)` â†’ compare Sharpe
+  - [ ] Blackâ€“Litterman: `opt.black_litterman_optimize(asset_returns, weight_cap=None)` â†’ compare Sharpe
 
----
+- [ ] Quick tuning knobs (simple grid)
+  - [ ] Iterate over `risk_model in ["sample", "ledoit_wolf", "oas"]`
+  - [ ] Iterate over `weight_cap in [None, 0.35, 0.25, 0.15]`
+  - [ ] Iterate over `entropy_penalty in [0.0, 0.01, 0.05]` (via `mean_variance_optimize`)
+  - [ ] Record best Sharpe/volatility and corresponding weights in a small table
 
-## Anti-Overengineering Checklist
-- [ ] Each spec follows simplified constitution principles
-- [ ] No complex ensemble methods or deep learning
-- [ ] Focus on core concepts, not production features
-- [ ] Code readability over performance optimization
-- [ ] Simple validation approaches
-- [ ] Resume-friendly feature demonstration
+- [ ] Save artifacts
+  - [ ] Save weights to CSV in `examples/outputs/weights_{method}.csv`
+  - [ ] Save figures to `examples/figures/`
 
----
-
-## Project Status: **SPEC-DRIVEN DEVELOPMENT**
-**Current Focus**: Execute specs in order (001 ’ 002 ’ 003 ’ 004 ’ 005)
-**Next Step**: Begin implementation of Spec 001 - Portfolio Optimization
+- [ ] Notes and observations
+  - [ ] Capture takeaways: stability vs. concentration, impact of `risk_model`, caps

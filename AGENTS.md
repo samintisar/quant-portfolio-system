@@ -1,48 +1,50 @@
-# Repository Guidelines
+﻿# Agent Guidelines: Resume-Ready Quant Portfolio System
 
-Welcome to the quant-portfolio-system project. This guide highlights the essentials for shipping reliable quantitative tooling without disrupting production pipelines.
+This guide keeps AI assistants aligned with the simplicity-first direction in `CLAUDE.md`. Treat every contribution as part of a resume portfolio project that should be easy to explain, demo, and maintain.
 
-## Project Structure & Module Organization
-- `data/src/` hosts ingestion feeds, preprocessing orchestration, and CLI adapters; runtime artifacts land in `data/storage/`.
-- `portfolio/` contains allocation engines and optimization constraints; align new models with existing factor interfaces.
-- `strategies/` implements trading logic and signal generation; reuse shared indicators from `data/src/lib/`.
-- `forecasting/` adds GPU-enabled prediction flows; keep compute-heavy assets isolated here.
-- `scripts/` and `examples/` hold reproducible workflows, while `tests/` mirrors domain folders (`unit/`, `integration/`, `statistical/`, `performance/`).
-- `config/` stores pipeline JSON/YAML definitions and `.env.gpu` captures accelerator settings.
+## Mission
+- Ship a working, interview-ready portfolio optimization demo.
+- Prefer clarity over abstraction; avoid enterprise patterns and deep hierarchies.
+- Showcase core quantitative finance concepts without extra bells and whistles.
 
-## Environment & Configuration Tips
-- Target Python 3.11+; install toolchain with `pip install -r docs/requirements.txt`.
-- Run `python scripts/setup_data_environment.py` before touching ingestion or backtests; it primes storage directories.
-- Parameterize runs via files in `config/`; prefer copying templates rather than editing committed defaults.
+## Core Principles
+- Start with the most direct implementation; only add complexity when absolutely necessary.
+- Keep code readable and well-typed; optimize for comprehension during interviews.
+- Focus on essentials: mean-variance optimization, Sharpe ratio, max drawdown, volatility, and clear data handling.
+- Reuse existing modules and files instead of creating variants or layers of indirection.
 
-## Build, Test, and Development Commands
-- `python -m pytest` runs the full suite with coverage reports (`htmlcov/`, `coverage.xml`) using the strict settings from `pyproject.toml`.
-- `pytest -m "not slow" --maxfail=1` is the pre-PR fast path and skips anything tagged `@pytest.mark.slow`.
-- `pytest tests/unit/ -v` and `pytest tests/integration/ -m integration` are the quickest ways to focus on critical suites when debugging.
-- `black . && isort .` enforce formatting; both use an 88-character limit.
-- `flake8` and `mypy .` gate linting and typing; silence warnings by fixing root causes, not by ignoring them.
-- `python scripts/run_preprocessing.py --config config/pipeline_config.json` smoke-tests the end-to-end data flow.
+## Minimal Tech Stack
+- Python 3.11+, Pandas, NumPy, Yahoo Finance API.
+- CVXPY for basic mean-variance optimization.
+- FastAPI for lightweight endpoints.
+- pytest for unit and integration coverage.
+- Avoid bringing in additional packages unless they are strictly required for a core feature.
 
-## Test Execution Playbook
-- Install tooling with `pip install -r docs/requirements.txt`, then either `pip install -e .` or export `PYTHONPATH=$PWD` so test imports resolve, and prime storage via `python scripts/setup_data_environment.py` before running any suite.
-- Use `pytest -m "not slow" --maxfail=1` for iterative development; it exercises unit and integration coverage while keeping turnaround tight.
-- Run `python -m pytest` ahead of merges to generate coverage artifacts (`coverage.xml`, `htmlcov/`) and validate strict marker usage.
-- Target performance or statistical checks explicitly with `pytest -m performance` or `pytest -m statistical` to avoid long runtimes during routine edits.
-- Regenerate reports with `python -m pytest --cov-report=html` and review `htmlcov/index.html` locally when investigating coverage regressions.
+## Repository Shape
+- Maintain a flat, simple structure. Keep logic in the existing `portfolio/`, `data/`, `api/`, `tests/`, `examples/`, and `scripts/` folders.
+- Do not introduce new sub-packages or modules labeled "advanced", "enhanced", or "enterprise".
+- Keep `requirements.txt` tidy and minimal; update it before installing anything new.
 
-## Coding Style & Naming Conventions
-- Use 4-space indentation, typed function signatures, and descriptive module-level docstrings focused on financial context.
-- Prefer snake_case for functions and variables, PascalCase for classes, UPPER_SNAKE_CASE for environment constants.
-- Keep public APIs side-effect free and return domain dataclasses from `data/src/models` where practical.
+## Working Process for Agents
+1. Deliver a basic, functional version first.
+2. Confirm functionality with sample data (e.g., AAPL, GOOGL) before refining.
+3. Add polish only when it clarifies the story for resumes or demos.
+4. Document key decisions so they are easy to explain.
 
-## Testing Guidelines
-- Place new tests alongside code mirrors (e.g., `tests/unit/data/test_preprocessing.py`).
-- Name files `test_<feature>.py` and functions `test_<behavior>`; leverage `pytest` fixtures under `tests/conftest.py`.
-- Tag long-running scenarios with `@pytest.mark.slow` or `@pytest.mark.performance` so CI filters stay effective.
-- Failing coverage must be addressed before review; update expectations in `tests/performance/` rather than relaxing thresholds.
+## Testing Expectations
+- Cover core calculations and API flows with straightforward pytest suites.
+- Tag longer scenarios appropriately, but avoid building elaborate test harnesses.
+- Prioritize reliability of demo paths over exhaustive edge cases.
 
-## Commit & Pull Request Guidelines
-- Follow the imperative style seen in history (`Add GPU acceleration support...`); keep subject lines =72 characters.
-- Reference tickets with `Refs #<id>` in the body and mention affected modules.
-- Include a short testing summary (`pytest -m "not slow"`, `mypy .`) and attach coverage deltas when relevant.
-- PR descriptions should outline risk, rollback strategy, and screenshots/logs for user-facing or performance-sensitive changes.
+## Data & Configuration
+- Use Yahoo Finance as the primary data source; keep preprocessing minimal.
+- Handle missing or invalid symbols gracefully but simply.
+- Rely on a small set of configuration files or environment variables that work out of the box.
+
+## Deliverables Mindset
+- Clean README notes, inline comments only where they aid explanation.
+- Provide runnable examples in `examples/` that demonstrate optimization results.
+- Aim for a working demo over theoretical completeness; recruiters value clarity and proof of competence.
+
+---
+*Latest alignment with CLAUDE.md: prioritize simplicity, demonstrable value, and minimalism.*

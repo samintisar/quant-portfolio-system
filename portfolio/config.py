@@ -25,7 +25,10 @@ def get_default_config() -> Dict[str, Any]:
         'data': {
             'min_data_points': 252,
             'max_missing_percentage': 0.05,
-            'enable_caching': True,
+            'use_offline_data': True,
+            'offline_data_dir': './data',
+            'fallback_to_online': True,
+            'enable_caching': False,
             'cache_dir': './cache'
         },
         'api': {
@@ -35,7 +38,15 @@ def get_default_config() -> Dict[str, Any]:
         },
         'optimization': {
             'default_method': 'mean_variance',
-            'risk_free_rate': 0.02
+            'risk_free_rate': 0.02,
+            'risk_model': 'ledoit_wolf',  # 'sample'|'ledoit_wolf'|'oas'
+            'entropy_penalty': 0.0,
+            'turnover_penalty': 0.0
+        },
+        'backtest': {
+            'max_position_cap': 0.20,
+            'risk_model': 'ledoit_wolf',
+            'turnover_penalty': 0.0
         }
     }
 
@@ -154,7 +165,10 @@ class Config:
             self._config['data'] = {
                 'min_data_points': 252,
                 'max_missing_percentage': 0.05,
-                'enable_caching': True,
+                'use_offline_data': True,
+                'offline_data_dir': './data',
+                'fallback_to_online': True,
+                'enable_caching': False,
                 'cache_dir': './cache'
             }
 

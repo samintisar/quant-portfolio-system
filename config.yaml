@@ -1,0 +1,45 @@
+# Simple configuration for portfolio optimization
+portfolio:
+  # Risk parameters
+  risk_free_rate: 0.02
+  max_position_size: 0.05
+  max_sector_concentration: 0.20
+
+  # Trading parameters
+  trading_days_per_year: 252
+  default_period: "5y"
+
+  # Performance thresholds
+  min_sharpe_ratio: 1.0
+  max_drawdown_threshold: 0.15
+
+# Data settings
+data:
+  # Data validation
+  min_data_points: 252
+  max_missing_percentage: 0.05
+
+  # Offline data storage
+  use_offline_data: true
+  offline_data_dir: "./data"
+  fallback_to_online: true  # Use online API if offline data unavailable
+
+# API settings (if needed)
+api:
+  host: "localhost"
+  port: 8000
+  debug: false
+
+# Optimization settings
+optimization:
+  default_method: "mean_variance"
+  risk_free_rate: 0.02
+  risk_model: "ledoit_wolf"   # sample|ledoit_wolf|oas
+  entropy_penalty: 0.0        # >= 0.0, set >0 to encourage diversification
+  turnover_penalty: 0.0       # >= 0.0, L2 turnover penalty in MV
+
+# Backtest defaults for scripts
+backtest:
+  max_position_cap: 0.20
+  risk_model: "ledoit_wolf"
+  turnover_penalty: 0.0

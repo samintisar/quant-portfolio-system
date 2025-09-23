@@ -221,3 +221,6 @@ conda-meta/
 
 # Claude local configuration
 .claude/settings.local.json
+
+# Generated reports
+reports/
