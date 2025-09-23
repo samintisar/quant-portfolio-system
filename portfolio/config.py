@@ -1,93 +1,197 @@
 """
-Simple configuration system for portfolio optimization.
+Simple configuration management for the portfolio system.
 """
 
-import os
-from dataclasses import dataclass, field
+import yaml
 from typing import Dict, Any, Optional
+import os
+import logging
 
-@dataclass
-class DataConfig:
-    """Configuration for data fetching and processing."""
-    default_period: str = field(default="5y")
-    min_data_points: int = field(default=252)
-    max_missing_pct: float = field(default=0.05)
-    enable_caching: bool = field(default=True)
-    cache_dir: str = field(default="./data/cache")
+logger = logging.getLogger(__name__)
 
-@dataclass
-class OptimizationConfig:
-    """Configuration for portfolio optimization methods."""
-    risk_free_rate: float = field(default=0.02)
-    max_iterations: int = field(default=1000)
-    tolerance: float = field(default=1e-8)
-    max_position_size: float = field(default=0.05)
-    max_sector_concentration: float = field(default=0.20)
-    max_drawdown: float = field(default=0.15)
-    max_volatility: float = field(default=0.25)
-    cvar_alpha: float = field(default=0.95)
 
-@dataclass
-class PerformanceConfig:
-    """Configuration for performance metrics and calculations."""
-    default_benchmark: str = field(default="SPY")
-    annualization_factor: int = field(default=252)
-    trading_days_per_year: int = field(default=252)
-    risk_free_rate: float = field(default=0.02)
-    confidence_level: float = field(default=0.95)
-    return_decimals: int = field(default=4)
-    percentage_decimals: int = field(default=2)
+def get_default_config() -> Dict[str, Any]:
+    """Get default configuration."""
+    return {
+        'portfolio': {
+            'risk_free_rate': 0.02,
+            'max_position_size': 0.05,
+            'max_sector_concentration': 0.20,
+            'trading_days_per_year': 252,
+            'default_period': '5y',
+            'min_sharpe_ratio': 1.0,
+            'max_drawdown_threshold': 0.15
+        },
+        'data': {
+            'min_data_points': 252,
+            'max_missing_percentage': 0.05,
+            'enable_caching': True,
+            'cache_dir': './cache'
+        },
+        'api': {
+            'host': 'localhost',
+            'port': 8000,
+            'debug': False
+        },
+        'optimization': {
+            'default_method': 'mean_variance',
+            'risk_free_rate': 0.02
+        }
+    }
 
-@dataclass
-class SystemConfig:
-    """Main system configuration combining all sub-configurations."""
-    debug: bool = field(default=False)
-    log_level: str = field(default="INFO")
-    max_assets: int = field(default=50)
-    min_assets: int = field(default=5)
-    data: DataConfig = field(default_factory=DataConfig)
-    optimization: OptimizationConfig = field(default_factory=OptimizationConfig)
-    performance: PerformanceConfig = field(default_factory=PerformanceConfig)
 
-    @classmethod
-    def from_env(cls) -> "SystemConfig":
-        """Create configuration from environment variables."""
-        return cls(
-            debug=os.getenv("DEBUG", "false").lower() == "true",
-            log_level=os.getenv("LOG_LEVEL", "INFO"),
-            max_assets=int(os.getenv("MAX_ASSETS", "50")),
-            min_assets=int(os.getenv("MIN_ASSETS", "5")),
-            data=DataConfig(
-                default_period=os.getenv("DEFAULT_DATA_PERIOD", "5y"),
-                min_data_points=int(os.getenv("MIN_DATA_POINTS", "252")),
-                max_missing_pct=float(os.getenv("MAX_MISSING_PCT", "0.05")),
-                enable_caching=os.getenv("ENABLE_CACHING", "true").lower() == "true",
-                cache_dir=os.getenv("CACHE_DIR", "./data/cache")
-            ),
-            optimization=OptimizationConfig(
-                risk_free_rate=float(os.getenv("RISK_FREE_RATE", "0.02")),
-                max_iterations=int(os.getenv("MAX_ITERATIONS", "1000")),
-                tolerance=float(os.getenv("TOLERANCE", "1e-8")),
-                max_position_size=float(os.getenv("MAX_POSITION_SIZE", "0.05")),
-                max_sector_concentration=float(os.getenv("MAX_SECTOR_CONCENTRATION", "0.20")),
-                max_drawdown=float(os.getenv("MAX_DRAWDOWN", "0.15")),
-                max_volatility=float(os.getenv("MAX_VOLATILITY", "0.25")),
-                cvar_alpha=float(os.getenv("CVAR_ALPHA", "0.95"))
-            ),
-            performance=PerformanceConfig(
-                default_benchmark=os.getenv("DEFAULT_BENCHMARK", "SPY"),
-                annualization_factor=int(os.getenv("ANNUALIZATION_FACTOR", "252")),
-                trading_days_per_year=int(os.getenv("TRADING_DAYS_PER_YEAR", "252")),
-                risk_free_rate=float(os.getenv("RISK_FREE_RATE", "0.02")),
-                confidence_level=float(os.getenv("CONFIDENCE_LEVEL", "0.95")),
-                return_decimals=int(os.getenv("RETURN_DECIMALS", "4")),
-                percentage_decimals=int(os.getenv("PERCENTAGE_DECIMALS", "2"))
-            )
-        )
+class Config:
+    """Simple configuration manager."""
+
+    def __init__(self, config_path: Optional[str] = None):
+        """Initialize configuration."""
+        self.config_path = config_path or os.getenv('CONFIG_PATH', 'config.yaml')
+        self._config = self._load_config()
+
+        # Add convenience attributes for test compatibility
+        self._add_convenience_attributes()
+
+    def _load_config(self) -> Dict[str, Any]:
+        """Load configuration from file or use defaults."""
+        try:
+            if os.path.exists(self.config_path):
+                with open(self.config_path, 'r') as f:
+                    config = yaml.safe_load(f)
+                logger.info(f"Loaded configuration from {self.config_path}")
+                return self._merge_with_defaults(config)
+            else:
+                logger.info("No config file found, using defaults")
+                return get_default_config()
+        except Exception as e:
+            logger.error(f"Error loading configuration: {e}")
+            logger.info("Using default configuration")
+            return get_default_config()
+
+    def _merge_with_defaults(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Merge loaded config with defaults."""
+        defaults = get_default_config()
+        merged = defaults.copy()
+
+        def merge_dict(d1, d2):
+            for k, v in d2.items():
+                if k in d1 and isinstance(d1[k], dict) and isinstance(v, dict):
+                    merge_dict(d1[k], v)
+                else:
+                    d1[k] = v
+
+        merge_dict(merged, config)
+        return merged
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get configuration value by key."""
+        keys = key.split('.')
+        value = self._config
+
+        for k in keys:
+            if isinstance(value, dict) and k in value:
+                value = value[k]
+            else:
+                return default
+
+        return value
+
+    def update(self, updates: Dict[str, Any]) -> None:
+        """Update configuration values."""
+        def update_dict(d, u):
+            for k, v in u.items():
+                if isinstance(v, dict):
+                    if k in d and isinstance(d[k], dict):
+                        update_dict(d[k], v)
+                    else:
+                        d[k] = v
+                else:
+                    d[k] = v
+
+        update_dict(self._config, updates)
+
+    def save(self, path: Optional[str] = None) -> None:
+        """Save configuration to file."""
+        save_path = path or self.config_path
+        try:
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            with open(save_path, 'w') as f:
+                yaml.safe_dump(self._config, f, default_flow_style=False)
+            logger.info(f"Saved configuration to {save_path}")
+        except Exception as e:
+            logger.error(f"Error saving configuration: {e}")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Get configuration as dictionary."""
+        return self._config.copy()
+
+    def __getitem__(self, key: str) -> Any:
+        """Allow dictionary-style access."""
+        return self.get(key)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        """Allow dictionary-style assignment."""
+        keys = key.split('.')
+        config = self._config
+
+        for k in keys[:-1]:
+            if k not in config:
+                config[k] = {}
+            config = config[k]
+
+        config[keys[-1]] = value
+
+    def _add_convenience_attributes(self):
+        """Add convenience attributes for test compatibility."""
+        # Add optimization section
+        if 'optimization' not in self._config:
+            self._config['optimization'] = {
+                'default_method': 'mean_variance',
+                'risk_free_rate': 0.02
+            }
+
+        # Add data section
+        if 'data' not in self._config:
+            self._config['data'] = {
+                'min_data_points': 252,
+                'max_missing_percentage': 0.05,
+                'enable_caching': True,
+                'cache_dir': './cache'
+            }
+
+        # Add performance section
+        if 'performance' not in self._config:
+            self._config['performance'] = {
+                'benchmark': 'SPY',
+                'risk_free_rate': 0.02
+            }
+
+        # Add convenience attributes as object properties
+        for section_name, section_config in self._config.items():
+            if isinstance(section_config, dict):
+                # Create a simple namespace object for the section
+                namespace = type('ConfigSection', (), {})()
+                for key, value in section_config.items():
+                    setattr(namespace, key, value)
+                setattr(self, section_name, namespace)
+
 
 # Global configuration instance
-config = SystemConfig.from_env()
+_config = None
 
-def get_config() -> SystemConfig:
-    """Get the global configuration instance."""
-    return config
+
+def get_config() -> Config:
+    """Get global configuration instance."""
+    global _config
+    if _config is None:
+        _config = Config()
+    return _config
+
+
+def load_config(config_path: str) -> Config:
+    """Load configuration from specific path."""
+    return Config(config_path)
+
+
+def update_config(updates: Dict[str, Any]) -> None:
+    """Update global configuration."""
+    get_config().update(updates)
