@@ -13,6 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from portfolio.ml.predictor import RandomForestPredictor
 from portfolio.data.yahoo_service import YahooFinanceService
+from pathlib import Path
 import logging
 
 # Set up logging
@@ -131,7 +132,11 @@ def plot_feature_importance(feature_importance, symbol):
     plt.title(f'Top 15 Feature Importance - {symbol} (Red = New Indicators)')
     plt.tight_layout()
 
-    plt.savefig(f'feature_importance_{symbol}.png', dpi=150, bbox_inches='tight')
+    # Save under examples/figures
+    figures_dir = Path(__file__).resolve().parent / 'figures'
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    out_path = figures_dir / f'feature_importance_{symbol}.png'
+    plt.savefig(out_path, dpi=150, bbox_inches='tight')
     plt.close()
 
 def main():

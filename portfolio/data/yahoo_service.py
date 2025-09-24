@@ -359,7 +359,7 @@ class YahooFinanceService:
             numeric_columns = cleaned_data.select_dtypes(include=[np.number]).columns
             for col in numeric_columns:
                 # Forward fill missing values, then backward fill
-                cleaned_data[col] = cleaned_data[col].fillna(method='ffill').fillna(method='bfill')
+                cleaned_data[col] = cleaned_data[col].ffill().bfill()
 
             # Remove rows with all NaN values
             cleaned_data = cleaned_data.dropna(how='all')

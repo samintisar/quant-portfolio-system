@@ -16,6 +16,7 @@ warnings.filterwarnings('ignore')
 from portfolio.optimizer.optimizer import SimplePortfolioOptimizer
 from portfolio.performance.calculator import SimplePerformanceCalculator
 from portfolio.data.yahoo_service import YahooFinanceService
+from portfolio.ml.predictor import RandomForestPredictor
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +30,11 @@ class BacktestConfig:
     benchmark_symbol: str = 'SPY'
     include_equal_weight_baseline: bool = True
     include_ml_overlay: bool = True
+    ml_tilt_alpha: float = 0.2  # strength of ML tilt over MVO weights
     max_position_cap: float = 0.20  # per-asset cap for constrained runs
     risk_model: str = 'ledoit_wolf'  # 'sample'|'ledoit_wolf'|'oas'
     turnover_penalty: float = 0.0
+    entropy_penalty: float = 0.03  # diversification control for MVO
 
 @dataclass
 class BacktestResult:
@@ -269,9 +272,12 @@ class WalkForwardBacktester:
                     weights = {symbol: 1.0/len(symbols) for symbol in symbols}
 
                 # Calculate transaction costs
+                applied_turnover = 0.0
                 if previous_weights is not None:
                     turnover = self._calculate_turnover(previous_weights, weights)
-                    transaction_costs += turnover * self.config.transaction_cost_bps / 10000
+                    cost = turnover * self.config.transaction_cost_bps / 10000
+                    transaction_costs += cost
+                    applied_turnover = turnover
 
                 # Store weights
                 weights_history.append({
@@ -282,6 +288,10 @@ class WalkForwardBacktester:
                 # Calculate test period returns
                 test_returns = test_prices.pct_change().dropna()
                 portfolio_returns = (test_returns * pd.Series(weights)).sum(axis=1)
+                # Apply transaction cost at the start of the test segment (net-of-cost)
+                if applied_turnover > 0 and not portfolio_returns.empty:
+                    cost = applied_turnover * self.config.transaction_cost_bps / 10000
+                    portfolio_returns.iloc[0] = portfolio_returns.iloc[0] - cost
 
                 returns_list.extend(portfolio_returns.values)
                 previous_weights = weights
@@ -296,6 +306,24 @@ class WalkForwardBacktester:
 
         # Calculate metrics (benchmark-relative if provided)
         metrics = self._calculate_comprehensive_metrics(returns_series, benchmark_returns)
+
+        # Compute diversification metrics (Effective Number of Holdings)
+        try:
+            if not weights_df.empty:
+                def _enh(row: pd.Series) -> float:
+                    import numpy as np
+                    w = row.drop(labels=['date'], errors='ignore').astype(float)
+                    w = w[w > 0]
+                    if w.empty:
+                        return 0.0
+                    eps = 1e-12
+                    return float(np.exp(-(w * np.log(w + eps)).sum()))
+                enh_series = weights_df.apply(_enh, axis=1)
+                metrics['avg_enh'] = float(enh_series.mean()) if not enh_series.empty else 0.0
+                metrics['min_enh'] = float(enh_series.min()) if not enh_series.empty else 0.0
+                metrics['max_enh'] = float(enh_series.max()) if not enh_series.empty else 0.0
+        except Exception:
+            pass
 
         # Calculate total turnover
         total_turnover = self._calculate_total_turnover(weights_history)
@@ -324,6 +352,7 @@ class WalkForwardBacktester:
                 returns,
                 weight_cap=weight_cap,
                 risk_model=self.config.risk_model,
+                entropy_penalty=getattr(self.config, 'entropy_penalty', 0.0),
                 turnover_penalty=self.config.turnover_penalty,
                 previous_weights=prev_vec,
             )
@@ -334,28 +363,95 @@ class WalkForwardBacktester:
             return {symbol: 1.0/len(symbols) for symbol in symbols}
 
     def _calculate_ml_overlay_weights(self, train_prices: pd.DataFrame, symbols: List[str]) -> Dict[str, float]:
-        """Calculate weights using ML overlay (simplified momentum scoring)."""
+        """Calculate weights using an RF-based ML tilt over MVO weights.
+
+        - Train RandomForest per symbol on the training window (next-day returns target)
+        - Use the most recent predicted return as a cross-sectional signal
+        - Z-score and tilt MVO weights multiplicatively: w_final ∝ w_mvo * exp(alpha * z)
+        - Apply position cap and renormalize
+        """
         try:
-            returns = train_prices.pct_change().dropna()
-            if returns.empty:
-                return {symbol: 1.0/len(symbols) for symbol in symbols}
+            # Baseline MVO weights on training window (capped)
+            mvo_weights = self._calculate_mean_variance_weights(
+                train_prices, symbols, weight_cap=self.config.max_position_cap, previous_weights=None
+            )
 
-            # Simple momentum scoring (12-month return)
-            momentum_scores = {}
-            for symbol in symbols:
-                if symbol in returns.columns:
-                    momentum = (1 + returns[symbol]).prod() - 1
-                    momentum_scores[symbol] = momentum
+            # Prepare signals per symbol
+            alpha = float(getattr(self.config, 'ml_tilt_alpha', 0.2) or 0.2)
+            signals: Dict[str, float] = {}
 
-            # Normalize scores to weights
-            scores = pd.Series(momentum_scores)
-            positive_scores = scores[scores > 0]
+            train_start = train_prices.index.min()
+            train_end = train_prices.index.max()
 
-            if len(positive_scores) == 0:
-                return {symbol: 1.0/len(symbols) for symbol in symbols}
+            for sym in symbols:
+                try:
+                    raw = self.data_service.fetch_historical_data(sym, period="5y")
+                    if raw is None or raw.empty:
+                        continue
+                    # Slice to training window (ensure enough lookback already present)
+                    df = raw.loc[:train_end]
+                    df = df.loc[max(train_start, df.index.min()):train_end]
+                    if df.empty:
+                        continue
 
-            weights = positive_scores / positive_scores.sum()
-            return weights.to_dict()
+                    rf = RandomForestPredictor()
+                    feat_df = rf.create_features(df)
+                    if feat_df.empty:
+                        continue
+                    X, y = rf.prepare_features(feat_df)
+                    if X.shape[0] < 50:
+                        # Avoid unstable fits on tiny samples
+                        continue
+                    rf.train(X, y)
+                    # Use the latest feature row for a next-day prediction
+                    pred = float(rf.predict(X[-1].reshape(1, -1))[0])
+                    signals[sym] = pred
+                except Exception:
+                    # Skip symbol on failure
+                    continue
+
+            if not signals:
+                return mvo_weights
+
+            # Z-score signals across universe (winsorize)
+            sig_series = pd.Series({s: signals.get(s, 0.0) for s in symbols}, dtype=float)
+            mean = float(sig_series.mean())
+            std = float(sig_series.std(ddof=0))
+            if std == 0 or np.isnan(std):
+                z = pd.Series(0.0, index=sig_series.index)
+            else:
+                z = (sig_series - mean) / std
+            z = z.clip(-2.0, 2.0)
+
+            # Apply multiplicative exponential tilt with min-signal threshold
+            w_mvo = pd.Series({s: mvo_weights.get(s, 0.0) for s in symbols}, dtype=float)
+            strength = float(z.abs().mean())
+            if strength < 0.10:
+                # Too weak signal; avoid tilt
+                tilted = w_mvo.copy()
+            else:
+                alpha_eff = alpha * min(1.0, strength)
+                tilted = w_mvo * np.exp(alpha_eff * z)
+            tilted = tilted.clip(lower=0.0)
+
+            # Renormalize
+            s = float(tilted.sum())
+            if s == 0 or np.isnan(s):
+                tilted = w_mvo.copy()
+                s = float(max(tilted.sum(), 1e-12))
+            tilted = tilted / s
+
+            # Apply position cap and renormalize again
+            cap = float(getattr(self.config, 'max_position_cap', 0.20) or 0.20)
+            if cap is not None and cap > 0:
+                tilted = tilted.clip(upper=cap)
+                s2 = float(tilted.sum())
+                if s2 == 0 or np.isnan(s2):
+                    tilted = w_mvo.copy()
+                    s2 = float(max(tilted.sum(), 1e-12))
+                tilted = tilted / s2
+
+            return {s: float(tilted.get(s, 0.0)) for s in symbols}
 
         except Exception as e:
             logger.warning(f"Error in ML overlay calculation: {e}")
