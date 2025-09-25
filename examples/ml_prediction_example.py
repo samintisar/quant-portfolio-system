@@ -4,7 +4,7 @@ Example usage of the ML prediction module for stock return forecasting.
 
 import pandas as pd
 import numpy as np
-from portfolio.ml.predictor import RandomForestPredictor
+from portfolio.ml import RandomForestPredictor
 from portfolio.data.yahoo_service import YahooFinanceService
 import logging
 

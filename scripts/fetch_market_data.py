@@ -1,8 +1,27 @@
 """
-One-time market data fetching script for offline data storage.
+Configuration-driven market data fetching script for offline data storage.
 
 This script downloads market data from Yahoo Finance and saves it locally
 for reliable offline access during portfolio optimization.
+
+FEATURES:
+- Configuration-based data management (config/data_settings.py)
+- Essential time periods only (5y, 10y) to prevent redundant storage
+- Automatic validation of data requirements
+- Cleanup of unused files and redundant data
+
+DATA MANAGEMENT POLICY:
+- Core symbols: 19 large cap US stocks
+- Benchmarks: S&P 500 (^GSPC), 10-year Treasury (^TNX)
+- Time periods: 5y (default), 10y (long-term) ONLY
+- Storage: Processed data + raw backup + combined files
+- Excluded: 1y, 3y, 1mo, 3mo, 6mo, 2y periods (redundant)
+
+USAGE:
+    python scripts/fetch_market_data.py
+
+The script will automatically validate configuration and fetch only
+essential data to maintain a clean, efficient data storage.
 """
 
 import sys
@@ -15,6 +34,10 @@ import logging
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from portfolio.data.yahoo_service import YahooFinanceService
+from config.data_settings import (
+    CORE_SYMBOLS, BENCHMARK_SYMBOLS, ESSENTIAL_TIME_PERIODS,
+    FETCHING_CONFIG, validate_config
+)
 
 # Configure logging
 logging.basicConfig(
@@ -24,41 +47,28 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Core symbols for portfolio optimization (19 large cap US stocks)
-CORE_SYMBOLS = [
-    'AAPL',  # Apple
-    'MSFT',  # Microsoft
-    'GOOGL', # Alphabet
-    'AMZN',  # Amazon
-    'TSLA',  # Tesla
-    'META',  # Meta Platforms
-    'NVDA',  # NVIDIA
-    'JPM',   # JPMorgan Chase
-    'JNJ',   # Johnson & Johnson
-    'V',     # Visa
-    'PG',    # Procter & Gamble
-    'UNH',   # UnitedHealth Group
-    'HD',    # Home Depot
-    'MA',    # Mastercard
-    'PYPL',  # PayPal
-    'DIS',   # Disney
-    'NFLX',  # Netflix
-    'ADBE',  # Adobe
-    'CRM',   # Salesforce
-]
-
-# Benchmark data for ML enhancement and market-relative features
-BENCHMARK_SYMBOLS = [
-    '^GSPC',  # S&P 500 - market benchmark
-    '^TNX',   # 10-year Treasury yield - risk-free rate
-]
-
-# Time periods to fetch
-TIME_PERIODS = ['1y', '3y', '5y']
+# Use configuration to prevent redundant data
+TIME_PERIODS = ESSENTIAL_TIME_PERIODS  # Enforces essential periods only
 
 def fetch_and_save_data():
     """Fetch market data and save to local files."""
     print("=== Market Data Fetching Script ===\n")
+
+    # Validate configuration before starting
+    print("Validating data configuration...")
+    validation = validate_config()
+    if not validation['valid']:
+        print("Configuration validation failed:")
+        for issue in validation['issues']:
+            print(f"  ❌ {issue}")
+        return False
+    else:
+        print("✅ Configuration validated successfully")
+        print(f"   Core symbols: {validation['symbols_count']}")
+        print(f"   Benchmark symbols: {validation['benchmarks_count']}")
+        print(f"   Essential periods: {validation['periods_count']}")
+        print(f"   Allowed periods: {', '.join(ESSENTIAL_TIME_PERIODS)}")
+        print()
 
     # Initialize service
     service = YahooFinanceService()

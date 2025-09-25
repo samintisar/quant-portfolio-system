@@ -1,0 +1,12 @@
+# Ignore files that don't need to be in conda environment
+.git
+.gitignore
+README.md
+requirements.txt
+data/
+examples/outputs/
+examples/figures/
+logs/
+*.log
+.DS_Store
+Thumbs.db

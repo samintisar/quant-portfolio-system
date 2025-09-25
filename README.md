@@ -1,10 +1,12 @@
 # Quant Portfolio System
 
-A clear, minimal portfolio optimization project that demonstrates end‑to‑end workflows: data ingest (Yahoo Finance), mean‑variance optimization, simple risk/return metrics, and a lightweight FastAPI service. The goal is to keep it easy to run, explain, and maintain.
+A portfolio optimization project that demonstrates end‑to‑end workflows: data ingest (Yahoo Finance), mean‑variance optimization, simple risk/return metrics, and a lightweight FastAPI service.
 
 ## Features
 - Yahoo Finance data loader with simple caching to `data/`
 - Mean‑variance optimization (long‑only, sum‑to‑1) via CVXPY
+- **Machine Learning**: Random Forest return prediction with technical indicators
+- **ML Features**: RSI, MACD, moving averages, momentum, volatility analysis
 - Metrics: annualized return, volatility, Sharpe ratio, max drawdown
 - Basic visualizations: equity curve, drawdown, efficient frontier (preview)
 - FastAPI endpoints for optimize/analyze
@@ -15,25 +17,30 @@ A clear, minimal portfolio optimization project that demonstrates end‑to‑end
 - Python 3.11+, Pandas, NumPy
 - yfinance (Yahoo Finance)
 - CVXPY
+- **scikit-learn** (Machine Learning - Random Forest)
 - FastAPI (+ uvicorn)
 - pytest
 - Matplotlib
 
 ## Quick Start
-1) Create a virtual environment and install dependencies
+1) Create and activate conda environment
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+conda env create -f environment.yml
+conda activate quant-portfolio-system
 ```
 
-2) Run the lab notebook (recommended first pass)
+2) Verify installation
+```bash
+python -c "import portfolio; print('Installation successful')"
+```
+
+3) Run the lab notebook (recommended first pass)
 ```bash
 # Launch Jupyter (VS Code, Jupyter Lab, or classic notebooks)
 # Open portfolio_optimization_lab.ipynb and run top-to-bottom
 ```
 
-3) (Optional) Fetch and cache data
+4) (Optional) Fetch and cache data
 ```bash
 python scripts/fetch_market_data.py
 ```
@@ -45,9 +52,12 @@ portfolio/                # Core logic
   api/                    # FastAPI app (portfolio.api.main:app)
   backtesting/            # Walk‑forward backtesting
   data/                   # Yahoo service and helpers
+  ml/                     # Machine Learning (Random Forest predictor)
   optimizer/              # SimplePortfolioOptimizer (MVO, CVaR, BL)
   performance/            # Metrics + plots
 examples/                 # Runnable examples and outputs
+  ml_workflow_demo.py     # Complete ML workflow with technical indicators
+  ml_prediction_example.py # ML prediction examples
 scripts/                  # Small, focused scripts (fetch, API, reports)
 tests/                    # pytest suites
 portfolio_optimization_lab.ipynb  # End‑to‑end lab notebook
@@ -67,7 +77,8 @@ Open `portfolio_optimization_lab.ipynb` and run cells in order. You’ll see:
 - Risk model: Ledoit–Wolf shrinkage (toggle to `sample` or `oas`)
 - Diversification: `weight_cap = 0.20`, `entropy_penalty = 0.03` (Effective Number of Holdings is printed)
 - Walk‑forward: 1y train / 1q test, transaction costs 7.5 bps per rebalance (returns are net‑of‑cost)
-- ML overlay: conservative tilt with a min‑signal threshold
+- **ML Features**: RSI(14), MACD(12,26,9), moving averages, momentum, volatility analysis
+- **ML Model**: Random Forest with 100 estimators, cross-validation, feature importance analysis
 
 ## API Usage (Optional)
 Start the API:
@@ -108,7 +119,8 @@ curl -X POST http://127.0.0.1:8000/analyze \
 ## Examples
 - `examples/data_pipeline_demo.py` — basic loader + cache
 - `examples/walk_forward_demo.py` — quick walk‑forward snapshot
-- `examples/ml_workflow_demo.py` — simple ML overlay illustration
+- `examples/ml_workflow_demo.py` — complete ML workflow with technical indicators (RSI, MACD, etc.)
+- `examples/ml_prediction_example.py` — ML prediction and feature importance analysis
 - Figures and CSV outputs are written under `examples/figures/` and `examples/outputs/`
 
 ## Tests

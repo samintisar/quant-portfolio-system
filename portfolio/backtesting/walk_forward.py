@@ -16,7 +16,7 @@ warnings.filterwarnings('ignore')
 from portfolio.optimizer.optimizer import SimplePortfolioOptimizer
 from portfolio.performance.calculator import SimplePerformanceCalculator
 from portfolio.data.yahoo_service import YahooFinanceService
-from portfolio.ml.predictor import RandomForestPredictor
+from portfolio.ml import RandomForestPredictor
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +31,11 @@ class BacktestConfig:
     include_equal_weight_baseline: bool = True
     include_ml_overlay: bool = True
     ml_tilt_alpha: float = 0.2  # strength of ML tilt over MVO weights
-    max_position_cap: float = 0.20  # per-asset cap for constrained runs
+    max_position_cap: float = 0.18  # per-asset cap for constrained runs
     risk_model: str = 'ledoit_wolf'  # 'sample'|'ledoit_wolf'|'oas'
     turnover_penalty: float = 0.0
     entropy_penalty: float = 0.03  # diversification control for MVO
+    cvar_alpha: float = 0.10  # tail probability for CVaR optimization
 
 @dataclass
 class BacktestResult:
@@ -143,7 +144,10 @@ class WalkForwardBacktester:
             results['mv_unconstrained'] = self._run_strategy_backtest(
                 symbols, prices, windows, 'mean_variance', benchmark_returns=spy_walk_forward
             )
-            results['mv_capped_20'] = self._run_strategy_backtest(
+            # Dynamic label reflecting configured cap (e.g., mv_capped_18 for 18%)
+            cap_pct_label = int(round(self.config.max_position_cap * 100)) if self.config.max_position_cap is not None else 0
+            mv_capped_label = f"mv_capped_{cap_pct_label}"
+            results[mv_capped_label] = self._run_strategy_backtest(
                 symbols, prices, windows, 'mean_variance_capped', benchmark_returns=spy_walk_forward
             )
 
@@ -169,7 +173,8 @@ class WalkForwardBacktester:
 
             # Maintain legacy alias for the primary optimized strategy
             primary_key = None
-            for candidate in ('mv_capped_20', 'mv_unconstrained', 'cvar_capped_20', 'black_litterman_capped_20'):
+            # Prefer capped MVO (current configured cap), then others
+            for candidate in (mv_capped_label, 'mv_unconstrained', 'cvar_capped_20', 'black_litterman_capped_20'):
                 if candidate in results and results[candidate] is not None:
                     primary_key = candidate
                     break
@@ -194,7 +199,7 @@ class WalkForwardBacktester:
             comparison_inputs = dict(results)
             comparison_inputs.pop('comparison', None)
             if 'optimized' in comparison_inputs:
-                for alias in ('mv_capped_20', 'mv_unconstrained'):
+                for alias in (mv_capped_label, 'mv_unconstrained'):
                     if alias in comparison_inputs and comparison_inputs[alias] is comparison_inputs['optimized']:
                         comparison_inputs.pop(alias)
                         break
@@ -463,7 +468,7 @@ class WalkForwardBacktester:
             returns = train_prices.pct_change().dropna()
             if returns.empty:
                 return {symbol: 1.0/len(symbols) for symbol in symbols}
-            result = self.optimizer.cvar_optimize(returns, alpha=0.05, weight_cap=weight_cap)
+            result = self.optimizer.cvar_optimize(returns, alpha=float(getattr(self.config, 'cvar_alpha', 0.10)), weight_cap=weight_cap)
             return result['weights']
         except Exception as e:
             logger.warning(f"Error in CVaR optimization: {e}")

@@ -105,6 +105,7 @@ class YahooFinanceService:
         Args:
             symbol: Stock symbol
             period: Time period (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)
+                   NOTE: Default is 5y to prevent redundant data storage
 
         Returns:
             DataFrame with price data and calculated returns
@@ -355,6 +356,31 @@ class YahooFinanceService:
             # Remove duplicate rows
             cleaned_data = cleaned_data.drop_duplicates()
 
+            # Fix negative Low values - replace with Close or Open values
+            if 'Low' in cleaned_data.columns:
+                negative_low_mask = cleaned_data['Low'] < 0
+                if negative_low_mask.any():
+                    logger.warning(f"Found {negative_low_mask.sum()} negative Low values - fixing with Close/Open values")
+                    # Try to fix with Close value first, then Open if Close is also negative
+                    cleaned_data.loc[negative_low_mask, 'Low'] = np.where(
+                        cleaned_data.loc[negative_low_mask, 'Close'] > 0,
+                        cleaned_data.loc[negative_low_mask, 'Close'],
+                        cleaned_data.loc[negative_low_mask, 'Open']
+                    )
+                    # If still negative, use absolute value as last resort
+                    still_negative = cleaned_data['Low'] < 0
+                    if still_negative.any():
+                        cleaned_data.loc[still_negative, 'Low'] = cleaned_data.loc[still_negative, 'Low'].abs()
+
+            # Fix other negative price columns (Open, High, Close, Adj Close)
+            price_columns = ['Open', 'High', 'Close', 'Adj Close']
+            for col in price_columns:
+                if col in cleaned_data.columns:
+                    negative_mask = cleaned_data[col] < 0
+                    if negative_mask.any():
+                        logger.warning(f"Found {negative_mask.sum()} negative {col} values - converting to positive")
+                        cleaned_data.loc[negative_mask, col] = cleaned_data.loc[negative_mask, col].abs()
+
             # Handle missing values
             numeric_columns = cleaned_data.select_dtypes(include=[np.number]).columns
             for col in numeric_columns:
@@ -409,6 +435,33 @@ class YahooFinanceService:
                 validation_report['is_valid'] = False
                 validation_report['issues'].append(f'Missing required columns: {missing_columns}')
 
+            # Check for negative prices in all price columns
+            price_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close']
+            for col in price_columns:
+                if col in data.columns:
+                    negative_prices = data[data[col] < 0]
+                    if len(negative_prices) > 0:
+                        validation_report['warnings'].append(
+                            f'Found {len(negative_prices)} negative {col} prices'
+                        )
+
+            # Check for zero prices (critical issue)
+            if 'Adj Close' in data.columns:
+                zero_prices = data[data['Adj Close'] <= 0]
+                if len(zero_prices) > 0:
+                    validation_report['issues'].append(
+                        f'Found {len(zero_prices)} zero/negative Adj Close prices'
+                    )
+
+            # Check for illogical price relationships
+            if all(col in data.columns for col in ['High', 'Low', 'Open', 'Close']):
+                # High should be >= Low
+                invalid_hl = data[data['High'] < data['Low']]
+                if len(invalid_hl) > 0:
+                    validation_report['issues'].append(
+                        f'Found {len(invalid_hl)} rows where High < Low'
+                    )
+
             # Check for data gaps using business days expectation (trading days)
             if len(data) > 1 and isinstance(data.index, pd.DatetimeIndex):
                 start_dt = data.index.min()
@@ -430,14 +483,6 @@ class YahooFinanceService:
                         validation_report['warnings'].append(
                             f'Found {len(extreme_returns)} extreme returns (>50%)'
                         )
-
-            # Check for zero/negative prices
-            if 'Adj Close' in data.columns:
-                zero_prices = data[data['Adj Close'] <= 0]
-                if len(zero_prices) > 0:
-                    validation_report['issues'].append(
-                        f'Found {len(zero_prices)} zero/negative prices'
-                    )
 
             # Dataset is valid unless there are critical issues
             validation_report['is_valid'] = len(validation_report['issues']) == 0

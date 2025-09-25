@@ -23,7 +23,7 @@ from portfolio.performance.visualization import (
     plot_feature_importance,
 )
 from portfolio.data.yahoo_service import YahooFinanceService
-from portfolio.ml.predictor import RandomForestPredictor
+from portfolio.ml import RandomForestPredictor
 
 
 def _clean_weights(weights: Dict[str, float], columns: Sequence[str]) -> Dict[str, float]:

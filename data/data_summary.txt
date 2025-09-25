@@ -1,0 +1,32 @@
+Market Data Summary (Standardized)
+Generated: 2025-09-24 00:02:27
+Core Symbols: 19
+Benchmark Symbols: 2
+Time Periods: 1y, 3y, 5y, 10y
+Core Success Rate: 73/76 (96.1%)
+Benchmark Success Rate: 8/8 (100.0%)
+
+Symbols Processed:
+  AAPL
+  MSFT
+  GOOGL
+  AMZN
+  TSLA
+  META
+  NVDA
+  JPM
+  JNJ
+  V
+  PG
+  UNH
+  HD
+  MA
+  PYPL
+  DIS
+  NFLX
+  ADBE
+  CRM
+
+Benchmarks:
+  ^GSPC
+  ^TNX

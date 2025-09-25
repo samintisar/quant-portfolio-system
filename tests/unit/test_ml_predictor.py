@@ -5,7 +5,7 @@ Unit tests for the ML prediction module.
 import pytest
 import pandas as pd
 import numpy as np
-from portfolio.ml.predictor import RandomForestPredictor
+from portfolio.ml import RandomForestPredictor
 import logging
 
 # Set up logging

@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from portfolio.ml.predictor import RandomForestPredictor
+from portfolio.ml import RandomForestPredictor
 from portfolio.data.yahoo_service import YahooFinanceService
 from pathlib import Path
 import logging
