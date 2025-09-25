@@ -214,7 +214,6 @@ conda-meta/
 
 # Jupyter
 .ipynb_checkpoints/
-*.ipynb
 
 # VS Code
 .vscode/
