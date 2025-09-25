@@ -16,7 +16,9 @@
       "Read(//proxmox/ibrokeass/proxmox/ibrokeass/Github/quant-portfolio-system/**)",
       "Bash(jupyter:*)",
       "Bash(PYTHONPATH=. python:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(conda:*)",
+      "mcp__ide__executeCode"
     ],
     "deny": [],
     "ask": []

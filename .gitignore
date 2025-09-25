@@ -219,7 +219,9 @@ conda-meta/
 .vscode/
 
 # Claude local configuration
-.claude/settings.local.json
+.claude/
+CLAUDE.md
+AGENTS.md
 
 # Generated reports
 reports/

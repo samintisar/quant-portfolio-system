@@ -3,41 +3,41 @@
 This file contains the runtime development guidelines for the Claude Code AI assistant when working on this quantitative trading and portfolio optimization project.
 
 ## Project Overview
-You are working on a **resume-focused portfolio optimization system** that demonstrates core quantitative finance concepts without overengineering. The system prioritizes:
+You are working on a **portfolio optimization system** that demonstrates core quantitative finance concepts without overengineering. The system prioritizes:
 - **Simplicity**: Clean, readable code that showcases understanding
 - **Core functionality**: Essential portfolio optimization techniques only
 - **Demonstrative value**: Clear examples of quantitative finance concepts
 - **Maintainability**: Easy to understand and explain in interviews
 
 ## Core Technologies (Minimal Set)
-- **Language**: Python 3.11+
+- **Language**: Python 3.13+
 - **Data**: Pandas, NumPy, Yahoo Finance API
 - **Optimization**: Basic CVXPY for mean-variance optimization
 - **Performance**: Simple metrics calculation (Sharpe, max drawdown)
 - **API**: FastAPI for basic endpoints
 - **Testing**: pytest for unit and integration tests
 
-## Mathematical Focus Areas (Resume-Ready)
+## Mathematical Focus Areas
 1. **Portfolio Theory**: Mean-variance optimization (core concept for interviews)
 2. **Risk Metrics**: Sharpe ratio, max drawdown, volatility calculation
 3. **Performance Analysis**: Basic return calculation and benchmarking
 4. **Data Processing**: Clean financial data handling with Pandas
 
-## Development Principles (Simplicity First)
+## Development Principles
 - **KISS (Keep It Simple, Stupid)**: No overengineering for resume projects
 - **Readable > Clever**: Code should be easy to explain in interviews
 - **Core functionality only**: Implement essential features, not edge cases
 - **Clean imports**: Minimal dependencies, clear project structure
 - **Working demo > Perfect system**: Focus on demonstrable value
 
-## Performance Targets (Reasonable for Resume Projects)
+## Performance Targets
 - **Functional API**: Endpoints that work for common use cases
 - **Clean code structure**: Easy to navigate and understand
 - **Basic test coverage**: Unit tests for core calculations
 - **Documentation**: Clear README and inline comments
 - **Demonstrable results**: Can show working optimization examples
 
-## Code Conventions (Resume-Friendly)
+## Code Conventions
 - **Simple file structure**: Flat hierarchy when possible
 - **Clear function names**: Self-explanatory without complex abstractions
 - **Minimal dependencies**: Only essential libraries
@@ -51,7 +51,7 @@ You are working on a **resume-focused portfolio optimization system** that demon
 4. **Clean code matters**: More important than perfect algorithms
 5. **Document decisions**: Explain why choices were made for interviews
 
-## Resume Project Guidelines (Most Important)
+## Project Guidelines
 - **This is a resume project, not an enterprise system**: Keep it simple and demonstrable
 - **NO overengineering**: Complex abstractions, excessive logging, or enterprise patterns
 - **Focus on interview topics**: Mean-variance optimization, basic risk metrics, clean data handling
@@ -94,10 +94,28 @@ quant-portfolio-system/
 5. **USE** existing files instead of creating new variants
 6. **FOCUS** on code that demonstrates understanding, not complexity
 
+## Environment Setup
+**IMPORTANT**: This project uses the `ml-conda` environment as the default. All dependencies are pre-installed in this conda environment.
+
+### Environment Commands:
+```bash
+# Activate the ml-conda environment (Windows)
+conda activate ml-conda
+
+# Verify environment
+conda list
+```
+
+### Development Workflow:
+1. **Always work in ml-conda environment**: All project dependencies are installed here
+2. **Use conda for package management**: `conda install package-name`
+3. **Keep requirements.txt updated**: For reproducibility and deployment documentation
+4. **Test in the correct environment**: Ensure all tests run in ml-conda
+
 ## Dependency Management (Simple for Resume Projects)
-1. **ALWAYS** update `requirements.txt` before installing packages
-2. **USE** `pip install -r requirements.txt` for all installations
-3. **NEVER** use individual `pip install` commands
+1. **PRIMARY**: Use `ml-conda` environment for all development work
+2. **SECONDARY**: Keep `requirements.txt` updated for documentation and deployment
+3. **USE** conda package management: `conda install package-name` in ml-conda environment
 4. **KEEP** dependencies minimal: Only essential libraries for the project
 5. **PIN** versions for reproducibility in resume demos
 
@@ -134,4 +152,4 @@ quant-portfolio-system/
 
 ---
 *Updated for Resume Project Focus - Simpler is Better*
-*Updated: 2025-09-22 | Lines: 95*
+*Updated: 2025-09-24 | Added ml-conda environment usage*
