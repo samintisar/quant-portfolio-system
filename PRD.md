@@ -42,10 +42,8 @@ This project showcases modern quantitative finance and machine learning in a pro
 - **FastAPI** endpoints for optimization and analysis.
 - **Streamlit** dashboard for interactive portfolio visualization.
 - **Docker** containerization.
-- **GitHub Actions** for CI/CD.
 - **Free-tier Cloud** (Render/Railway) hosting.
 
----
 
 ## 4. Architecture
 - **Data Layer**: Yahoo Finance API (15–20 US large-cap stocks).
