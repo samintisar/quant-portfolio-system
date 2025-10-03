@@ -149,13 +149,20 @@ class SimplePortfolioOptimizer:
                                risk_model: Optional[str] = None,
                                entropy_penalty: Optional[float] = None,
                                turnover_penalty: Optional[float] = None,
-                               previous_weights: Optional[np.ndarray] = None) -> Dict[str, float]:
+                               previous_weights: Optional[np.ndarray] = None,
+                               max_turnover: Optional[float] = None) -> Dict[str, float]:
         """
         Perform mean-variance optimization using CVXPY.
 
         Args:
             returns: DataFrame of asset returns
             target_return: Target return (if None, maximize Sharpe ratio)
+            weight_cap: Maximum weight per asset
+            risk_model: Risk model to use ('sample', 'ledoit_wolf', 'oas')
+            entropy_penalty: Penalty for concentration (encourages diversification)
+            turnover_penalty: L2 penalty for turnover (soft constraint)
+            previous_weights: Previous portfolio weights for turnover calculation
+            max_turnover: Maximum allowed turnover (L1 norm constraint, hard limit)
 
         Returns:
             Dictionary with optimal weights and metrics
@@ -213,6 +220,13 @@ class SimplePortfolioOptimizer:
 
             if target_return is not None:
                 constraints.append(mean_values @ weights >= target_return)
+            
+            # Hard turnover constraint (L1 norm of weight changes)
+            if max_turnover is not None and previous_weights is not None:
+                prev = np.asarray(previous_weights).reshape((-1,))
+                if prev.size == n_assets:
+                    # L1 norm: sum of absolute changes
+                    constraints.append(cp.norm(weights - prev, 1) <= max_turnover)
 
             # Solve optimization problem
             problem = cp.Problem(objective, constraints)

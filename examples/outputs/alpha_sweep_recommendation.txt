@@ -1,1 +1,0 @@
-Recommended ml_tilt_alpha ≈ 0.40 (Sharpe=1.00, Vol=0.00, MDD=-0.00)

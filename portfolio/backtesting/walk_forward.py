@@ -36,6 +36,7 @@ class BacktestConfig:
     turnover_penalty: float = 0.0
     entropy_penalty: float = 0.03  # diversification control for MVO
     cvar_alpha: float = 0.10  # tail probability for CVaR optimization
+    max_turnover_constraint: float = 0.30  # maximum L1 turnover (hard constraint)
 
 @dataclass
 class BacktestResult:
@@ -48,12 +49,47 @@ class BacktestResult:
     turnover: float
     baseline_returns: Optional[pd.Series] = None
     ml_overlay_returns: Optional[pd.Series] = None
+    
+    @property
+    def equity_curve(self) -> pd.Series:
+        """Calculate cumulative equity curve from returns."""
+        return (1 + self.returns).cumprod()
 
 class WalkForwardBacktester:
     """Walk-forward backtesting system with transaction costs and performance metrics."""
 
-    def __init__(self, config: BacktestConfig):
-        """Initialize backtester with configuration."""
+    def __init__(self, config: Union[BacktestConfig, None] = None, 
+                 train_period: str = "3y",
+                 test_period: str = "3mo",
+                 transaction_cost: float = 0.00075,
+                 rebalance_frequency: str = "quarterly"):
+        """
+        Initialize backtester with configuration.
+        
+        Args:
+            config: BacktestConfig object (if None, uses other parameters)
+            train_period: Training period (e.g., "3y", "2y")
+            test_period: Test period (e.g., "3mo", "1q")
+            transaction_cost: Transaction cost as decimal (e.g., 0.00075 for 7.5 bps)
+            rebalance_frequency: Rebalancing frequency ("quarterly" or "monthly")
+        """
+        if config is None:
+            # Parse periods
+            train_years = int(train_period.replace('y', ''))
+            if 'mo' in test_period:
+                test_quarters = int(test_period.replace('mo', '')) // 3
+            elif 'q' in test_period:
+                test_quarters = int(test_period.replace('q', ''))
+            else:
+                test_quarters = 1
+            
+            config = BacktestConfig(
+                train_years=train_years,
+                test_quarters=test_quarters,
+                transaction_cost_bps=transaction_cost * 10000,
+                rebalance_frequency=rebalance_frequency
+            )
+        
         self.config = config
         self.optimizer = SimplePortfolioOptimizer()
         self.performance_calc = SimplePerformanceCalculator()
@@ -149,6 +185,11 @@ class WalkForwardBacktester:
             mv_capped_label = f"mv_capped_{cap_pct_label}"
             results[mv_capped_label] = self._run_strategy_backtest(
                 symbols, prices, windows, 'mean_variance_capped', benchmark_returns=spy_walk_forward
+            )
+            
+            # Turnover-constrained strategy
+            results['mv_turnover_constrained'] = self._run_strategy_backtest(
+                symbols, prices, windows, 'mean_variance_turnover_constrained', benchmark_returns=spy_walk_forward
             )
 
             # CVaR and Black–Litterman strategies (with caps)
@@ -265,6 +306,10 @@ class WalkForwardBacktester:
                     weights = self._calculate_mean_variance_weights(train_prices, symbols, weight_cap=None, previous_weights=previous_weights)
                 elif strategy == 'mean_variance_capped':
                     weights = self._calculate_mean_variance_weights(train_prices, symbols, weight_cap=self.config.max_position_cap, previous_weights=previous_weights)
+                elif strategy == 'mean_variance_turnover_constrained':
+                    # Turnover-constrained strategy with hard L1 limit
+                    max_to = getattr(self.config, 'max_turnover_constraint', 0.30)
+                    weights = self._calculate_mean_variance_weights(train_prices, symbols, weight_cap=self.config.max_position_cap, previous_weights=previous_weights, max_turnover=max_to)
                 elif strategy == 'cvar':
                     weights = self._calculate_cvar_weights(train_prices, symbols, weight_cap=self.config.max_position_cap)
                 elif strategy == 'black_litterman':
@@ -342,8 +387,16 @@ class WalkForwardBacktester:
             turnover=total_turnover
         )
 
-    def _calculate_mean_variance_weights(self, train_prices: pd.DataFrame, symbols: List[str], weight_cap: Optional[float] = None, previous_weights: Optional[Dict[str, float]] = None) -> Dict[str, float]:
-        """Calculate weights using mean-variance optimization."""
+    def _calculate_mean_variance_weights(self, train_prices: pd.DataFrame, symbols: List[str], weight_cap: Optional[float] = None, previous_weights: Optional[Dict[str, float]] = None, max_turnover: Optional[float] = None) -> Dict[str, float]:
+        """Calculate weights using mean-variance optimization.
+        
+        Args:
+            train_prices: Training period price data
+            symbols: List of asset symbols
+            weight_cap: Maximum weight per asset
+            previous_weights: Previous portfolio weights for turnover calculation
+            max_turnover: Maximum allowed turnover (L1 norm constraint)
+        """
         try:
             returns = train_prices.pct_change().dropna()
             if returns.empty:
@@ -360,6 +413,7 @@ class WalkForwardBacktester:
                 entropy_penalty=getattr(self.config, 'entropy_penalty', 0.0),
                 turnover_penalty=self.config.turnover_penalty,
                 previous_weights=prev_vec,
+                max_turnover=max_turnover,
             )
             return result['weights']
 
@@ -634,6 +688,139 @@ class WalkForwardBacktester:
                 report.append("")
 
         return "\n".join(report)
+
+    def run_regime_adaptive_backtest(
+        self,
+        symbols: List[str],
+        start_date: str,
+        end_date: str,
+        spy_returns: pd.Series,
+        detector,
+        weight_cap: float = 0.20
+    ) -> BacktestResult:
+        """
+        Run backtest with regime-adaptive strategy selection.
+        
+        Args:
+            symbols: List of asset symbols
+            start_date: Start date
+            end_date: End date
+            spy_returns: SPY returns for regime detection
+            detector: Fitted RegimeDetector instance
+            weight_cap: Maximum weight per asset
+            
+        Returns:
+            BacktestResult with adaptive strategy performance
+        """
+        logger.info("Starting regime-adaptive backtest")
+        
+        # Load price data
+        prices = self._load_price_data(symbols)
+        if prices.empty:
+            raise ValueError("No price data available")
+        
+        # Filter to date range
+        prices = prices.loc[start_date:end_date]
+        returns = prices.pct_change().dropna()
+        
+        # Detect regimes
+        regimes = detector.predict(spy_returns)
+        
+        # Initialize tracking
+        portfolio_returns = []
+        weights_history = []
+        dates_list = []
+        prev_weights = None
+        total_turnover = 0.0
+        total_transaction_costs = 0.0
+        
+        # Walk forward with regime-adaptive rebalancing
+        rebalance_freq = self.config.rebalance_frequency
+        if rebalance_freq == 'quarterly':
+            rebal_days = 63
+        else:
+            rebal_days = 21
+        
+        for i in range(self.train_days, len(returns), rebal_days):
+            train_start = max(0, i - self.train_days)
+            train_end = i
+            test_end = min(i + rebal_days, len(returns))
+            
+            if test_end <= train_end:
+                break
+            
+            # Get training data
+            train_returns = returns.iloc[train_start:train_end]
+            
+            # Detect current regime (use most recent observation)
+            regime_dates = regimes.index
+            current_date = returns.index[i]
+            
+            # Find closest regime observation
+            if current_date in regime_dates:
+                current_regime = regimes.loc[current_date]
+            else:
+                # Use last available regime
+                available_regimes = regime_dates[regime_dates <= current_date]
+                if len(available_regimes) > 0:
+                    current_regime = regimes.loc[available_regimes[-1]]
+                else:
+                    current_regime = 'Sideways'  # Default fallback
+            
+            # Optimize based on detected regime
+            opt_result = detector.optimize_for_regime(
+                current_regime,
+                self.optimizer,
+                train_returns,
+                weight_cap=weight_cap
+            )
+            
+            new_weights = pd.Series(opt_result['weights'])
+            
+            # Calculate turnover
+            if prev_weights is not None:
+                aligned_prev = prev_weights.reindex(new_weights.index, fill_value=0.0)
+                turnover = (new_weights - aligned_prev).abs().sum()
+                total_turnover += turnover
+                total_transaction_costs += turnover * (self.config.transaction_cost_bps / 10000.0)
+            
+            # Track weights
+            weights_history.append({
+                'date': current_date,
+                'regime': current_regime,
+                **new_weights.to_dict()
+            })
+            
+            # Calculate portfolio returns for test period
+            test_returns = returns.iloc[train_end:test_end]
+            for j, (date, ret_row) in enumerate(test_returns.iterrows()):
+                port_ret = (ret_row * new_weights).sum()
+                portfolio_returns.append(port_ret)
+                dates_list.append(date)
+            
+            prev_weights = new_weights
+        
+        # Create result
+        returns_series = pd.Series(portfolio_returns, index=dates_list)
+        weights_df = pd.DataFrame(weights_history).set_index('date')
+        
+        # Calculate metrics using the performance calculator
+        metrics = self.performance_calc.calculate_metrics(returns_series)
+        
+        # Add regime-specific info
+        metrics['avg_turnover'] = total_turnover / (len(weights_history) - 1) if len(weights_history) > 1 else 0
+        
+        result = BacktestResult(
+            dates=dates_list,
+            returns=returns_series,
+            weights_history=weights_df,
+            metrics=metrics,
+            transaction_costs=total_transaction_costs,
+            turnover=total_turnover / (len(weights_history) - 1) if len(weights_history) > 1 else 0
+        )
+        
+        logger.info(f"Regime-adaptive backtest complete: Sharpe={metrics['sharpe_ratio']:.3f}")
+        return result
 
 def run_walk_forward_backtest(symbols: List[str], start_date: str, end_date: str,
                             config: Optional[BacktestConfig] = None) -> Dict[str, BacktestResult]:

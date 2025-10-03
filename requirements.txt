@@ -17,6 +17,7 @@ PyYAML>=6.0
 # Machine Learning (simple implementations only)
 scikit-learn>=1.0.0
 xgboost>=2.0.0
+hmmlearn>=0.3.0
 
 # Web API (optional - for basic endpoints)
 fastapi>=0.100.0

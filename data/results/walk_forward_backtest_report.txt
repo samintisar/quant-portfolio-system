@@ -1,0 +1,150 @@
+============================================================
+WALK-FORWARD BACKTESTING REPORT
+============================================================
+
+Configuration:
+  Training Period: 3 year(s)
+  Testing Period: 2 quarter(s)
+  Transaction Costs: 7.5 bps
+  Rebalance Frequency: quarterly
+
+--- MV_UNCONSTRAINED STRATEGY ---
+Performance Metrics:
+  Total Return: 31.38%
+  Annual Return: 50.23%
+  Annual Volatility: 43.11%
+  Sharpe Ratio: 1.12
+  Sortino Ratio: 1.75
+  Max Drawdown: -30.02%
+  Calmar Ratio: 1.67
+
+Trading Metrics:
+  Total Transaction Costs: 0.0750%
+  Annual Turnover: 99.98%
+  Win Rate: 53.8%
+
+--- MV_CAPPED_18 STRATEGY ---
+Performance Metrics:
+  Total Return: 20.67%
+  Annual Return: 32.34%
+  Annual Volatility: 31.05%
+  Sharpe Ratio: 0.98
+  Sortino Ratio: 1.53
+  Max Drawdown: -20.17%
+  Calmar Ratio: 1.60
+
+Trading Metrics:
+  Total Transaction Costs: 0.0543%
+  Annual Turnover: 72.44%
+  Win Rate: 52.7%
+
+--- MV_TURNOVER_CONSTRAINED STRATEGY ---
+Performance Metrics:
+  Total Return: 12.75%
+  Annual Return: 19.60%
+  Annual Volatility: 31.97%
+  Sharpe Ratio: 0.55
+  Sortino Ratio: 0.89
+  Max Drawdown: -19.67%
+  Calmar Ratio: 1.00
+
+Trading Metrics:
+  Total Transaction Costs: 0.0113%
+  Annual Turnover: 15.00%
+  Win Rate: 53.3%
+
+--- CVAR_CAPPED_20 STRATEGY ---
+Performance Metrics:
+  Total Return: 9.24%
+  Annual Return: 14.08%
+  Annual Volatility: 19.20%
+  Sharpe Ratio: 0.63
+  Sortino Ratio: 0.92
+  Max Drawdown: -15.93%
+  Calmar Ratio: 0.88
+
+Trading Metrics:
+  Total Transaction Costs: 0.0256%
+  Annual Turnover: 34.09%
+  Win Rate: 53.3%
+
+--- BLACK_LITTERMAN_CAPPED_20 STRATEGY ---
+Performance Metrics:
+  Total Return: 43.40%
+  Annual Return: 71.18%
+  Annual Volatility: 41.51%
+  Sharpe Ratio: 1.67
+  Sortino Ratio: 2.86
+  Max Drawdown: -21.65%
+  Calmar Ratio: 3.29
+
+Trading Metrics:
+  Total Transaction Costs: 0.0138%
+  Annual Turnover: 18.39%
+  Win Rate: 54.4%
+
+--- EQUAL_WEIGHT STRATEGY ---
+Performance Metrics:
+  Total Return: 18.70%
+  Annual Return: 29.13%
+  Annual Volatility: 27.09%
+  Sharpe Ratio: 1.00
+  Sortino Ratio: 1.64
+  Max Drawdown: -17.32%
+  Calmar Ratio: 1.68
+
+Trading Metrics:
+  Total Transaction Costs: 0.0000%
+  Annual Turnover: 0.00%
+  Win Rate: 55.6%
+
+--- ML_OVERLAY STRATEGY ---
+Performance Metrics:
+  Total Return: 20.98%
+  Annual Return: 32.84%
+  Annual Volatility: 31.33%
+  Sharpe Ratio: 0.98
+  Sortino Ratio: 1.53
+  Max Drawdown: -20.28%
+  Calmar Ratio: 1.62
+
+Trading Metrics:
+  Total Transaction Costs: 0.0549%
+  Annual Turnover: 73.17%
+  Win Rate: 52.7%
+
+--- OPTIMIZED STRATEGY ---
+Performance Metrics:
+  Total Return: 20.67%
+  Annual Return: 32.34%
+  Annual Volatility: 31.05%
+  Sharpe Ratio: 0.98
+  Sortino Ratio: 1.53
+  Max Drawdown: -20.17%
+  Calmar Ratio: 1.60
+
+Trading Metrics:
+  Total Transaction Costs: 0.0543%
+  Annual Turnover: 72.44%
+  Win Rate: 52.7%
+
+--- SPY STRATEGY ---
+Performance Metrics:
+  Total Return: 20.54%
+  Annual Return: 31.69%
+  Annual Volatility: 24.53%
+  Sharpe Ratio: 1.21
+  Sortino Ratio: 1.76
+  Max Drawdown: -16.28%
+  Calmar Ratio: 1.95
+
+Trading Metrics:
+  Total Transaction Costs: 0.0000%
+  Annual Turnover: 0.00%
+  Win Rate: 54.4%
+
+--- STRATEGY RANKINGS ---
+sharpe_ratio: black_litterman_capped_20 > spy > mv_unconstrained > equal_weight > ml_overlay > optimized > cvar_capped_20 > mv_turnover_constrained
+sortino_ratio: black_litterman_capped_20 > spy > mv_unconstrained > equal_weight > ml_overlay > optimized > cvar_capped_20 > mv_turnover_constrained
+annual_return: black_litterman_capped_20 > mv_unconstrained > ml_overlay > optimized > spy > equal_weight > mv_turnover_constrained > cvar_capped_20
+max_drawdown: cvar_capped_20 > spy > equal_weight > mv_turnover_constrained > optimized > ml_overlay > black_litterman_capped_20 > mv_unconstrained
